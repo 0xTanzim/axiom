@@ -1,11 +1,11 @@
 package io.axiom.core.app;
 
-import java.util.function.Supplier;
+import java.util.function.*;
 
-import io.axiom.core.error.ErrorHandler;
-import io.axiom.core.handler.Handler;
-import io.axiom.core.middleware.MiddlewareHandler;
-import io.axiom.core.routing.Router;
+import io.axiom.core.error.*;
+import io.axiom.core.handler.*;
+import io.axiom.core.middleware.*;
+import io.axiom.core.routing.*;
 
 /**
  * Main application interface for Axiom framework.
@@ -16,11 +16,11 @@ import io.axiom.core.routing.Router;
  * and controlling the application lifecycle.
  *
  * <h2>Basic Usage</h2>
- * 
+ *
  * <pre>{@code
  * Router router = new Router();
- * router.get("/health", c -> c.text("OK"));
- * router.get("/users/:id", c -> c.json(userService.find(c.param("id"))));
+ * router.get("/health", ctx -> ctx.text("OK"));
+ * router.get("/users/:id", ctx -> ctx.json(userService.find(ctx.param("id"))));
  *
  * App app = Axiom.create();
  * app.use(logging());
@@ -28,31 +28,43 @@ import io.axiom.core.routing.Router;
  * app.listen(8080);
  * }</pre>
  *
- * <h2>Middleware</h2>
- * 
+ * <h2>Middleware Styles</h2>
+ *
+ * <p>
+ * Axiom supports two middleware styles. Use whichever fits your mental model:
+ *
  * <pre>{@code
- * // Global middleware (applied to all routes)
- * app.use((c, next) -> {
- *     log.info("Request: {} {}", c.method(), c.path());
+ * // Style 1: Explicit next parameter
+ * app.use((ctx, next) -> {
+ *     log.info("Request: {} {}", ctx.method(), ctx.path());
  *     next.run();
  * });
  *
- * // Before/After hooks
- * app.before(c -> log.debug("Before handler"));
- * app.after(c -> log.debug("After handler"));
+ * // Style 2: Context-embedded next
+ * app.use(ctx -> {
+ *     log.info("Request: {} {}", ctx.method(), ctx.path());
+ *     ctx.next();
+ * });
+ * }</pre>
+ *
+ * <h2>Before/After Hooks</h2>
+ *
+ * <pre>{@code
+ * app.before(ctx -> log.debug("Before handler"));
+ * app.after(ctx -> log.debug("After handler"));
  * }</pre>
  *
  * <h2>Error Handling</h2>
- * 
+ *
  * <pre>{@code
- * app.onError((c, e) -> {
- *     c.status(500);
- *     c.json(Map.of("error", e.getMessage()));
+ * app.onError((ctx, e) -> {
+ *     ctx.status(500);
+ *     ctx.json(Map.of("error", e.getMessage()));
  * });
  * }</pre>
  *
  * <h2>Lifecycle</h2>
- * 
+ *
  * <pre>{@code
  * app.listen(8080); // Start server (blocking)
  * app.stop(); // Graceful shutdown
@@ -60,6 +72,7 @@ import io.axiom.core.routing.Router;
  *
  * @see Router
  * @see MiddlewareHandler
+ * @see SimpleMiddleware
  * @see ErrorHandler
  * @since 0.1.0
  */
@@ -68,16 +81,41 @@ public interface App {
     // ========== Middleware ==========
 
     /**
-     * Registers global middleware.
+     * Registers global middleware with explicit next parameter.
      *
      * <p>
      * Middleware is executed in registration order for every request.
      * It wraps all route handlers.
      *
-     * @param middleware the middleware handler
+     * <pre>{@code
+     * app.use((ctx, next) -> {
+     *     log(ctx.path());
+     *     next.run();
+     * });
+     * }</pre>
+     *
+     * @param middleware the middleware handler with (ctx, next) signature
      * @return this app for chaining
      */
     App use(MiddlewareHandler middleware);
+
+    /**
+     * Registers global middleware with context-embedded next.
+     *
+     * <p>
+     * Alternative style where next() is called on the context.
+     *
+     * <pre>{@code
+     * app.use(ctx -> {
+     *     log(ctx.path());
+     *     ctx.next();
+     * });
+     * }</pre>
+     *
+     * @param middleware the middleware handler with ctx.next() style
+     * @return this app for chaining
+     */
+    App use(SimpleMiddleware middleware);
 
     /**
      * Registers a before-handler hook.

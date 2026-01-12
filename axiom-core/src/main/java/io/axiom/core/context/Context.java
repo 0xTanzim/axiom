@@ -1,7 +1,8 @@
 package io.axiom.core.context;
 
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+
+import io.axiom.core.handler.*;
 
 /**
  * Request/response context providing access to all request data
@@ -140,8 +141,8 @@ public interface Context {
      * @param name the header name (case-insensitive)
      * @return the header value, or null if not present
      */
-    default String header(String name) {
-        return headers().get(name);
+    default String header(final String name) {
+        return this.headers().get(name);
     }
 
     // ========== Response Methods ==========
@@ -254,7 +255,43 @@ public interface Context {
      * @param defaultValue value to return if key not present
      * @return the stored value or defaultValue
      */
-    default <T> T getOrDefault(String key, Class<T> type, T defaultValue) {
-        return get(key, type).orElse(defaultValue);
+    default <T> T getOrDefault(final String key, final Class<T> type, final T defaultValue) {
+        return this.get(key, type).orElse(defaultValue);
+    }
+
+    // ========== Middleware Support ==========
+
+    /**
+     * Continues execution to the next middleware or handler.
+     *
+     * <p>
+     * This method is only available when the context is used within
+     * middleware. It provides an alternative DX style:
+     *
+     * <pre>{@code
+     * // Style 1: Explicit next parameter
+     * app.use((ctx, next) -> {
+     *     log(ctx.path());
+     *     next.run();
+     * });
+     *
+     * // Style 2: Context-embedded next (same behavior)
+     * app.use(ctx -> {
+     *     log(ctx.path());
+     *     ctx.next();
+     * });
+     * }</pre>
+     *
+     * <p>
+     * Both styles are first-class and produce identical behavior.
+     * Use whichever fits your mental model.
+     *
+     * @throws Exception                     if the next handler throws
+     * @throws UnsupportedOperationException if called outside middleware context
+     */
+    default void next() throws Exception {
+        throw new UnsupportedOperationException(
+                "next() is only available in middleware context. " +
+                        "Use app.use(ctx -> { ctx.next(); }) style middleware.");
     }
 }

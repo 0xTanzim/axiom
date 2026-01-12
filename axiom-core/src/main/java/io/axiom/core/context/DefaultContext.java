@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.*;
 
 import io.axiom.core.error.*;
 import io.axiom.core.json.*;
+import io.axiom.core.middleware.*;
 
 /**
  * Default implementation of {@link Context}.
@@ -167,6 +168,32 @@ public final class DefaultContext implements Context {
     public void set(final String key, final Object value) {
         Objects.requireNonNull(key, "State key cannot be null");
         this.state.put(key, value);
+    }
+
+    // ========== Middleware Support ==========
+
+    private Next nextHandler;
+
+    /**
+     * Sets the next handler for middleware chain support.
+     *
+     * <p>
+     * This is called by the middleware adapter to enable {@code ctx.next()} style.
+     *
+     * @param next the next handler in the chain
+     */
+    public void setNext(final Next next) {
+        this.nextHandler = next;
+    }
+
+    @Override
+    public void next() throws Exception {
+        if (this.nextHandler == null) {
+            throw new UnsupportedOperationException(
+                    "next() is only available in middleware context. " +
+                            "Use app.use(ctx -> { ctx.next(); }) style middleware.");
+        }
+        this.nextHandler.run();
     }
 
     // ========== Internal ==========
