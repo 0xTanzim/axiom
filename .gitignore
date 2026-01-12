@@ -50,3 +50,18 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+## Gradle
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+.gradle-test-kit/
+
+## Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
