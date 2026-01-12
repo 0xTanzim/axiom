@@ -1,9 +1,9 @@
 package io.axiom.core.routing;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.*;
 
-import io.axiom.core.handler.Handler;
+import io.axiom.core.handler.*;
 
 @DisplayName("Route")
 class RouteTest {
@@ -18,17 +18,17 @@ class RouteTest {
         @Test
         @DisplayName("creates route with method, path, handler")
         void createsRoute() {
-            Route route = Route.of("GET", "/users", NOOP);
-            assertThat(route.method()).isEqualTo("GET");
-            assertThat(route.path()).isEqualTo("/users");
-            assertThat(route.handler()).isNotNull();
+            final Route route = Route.of("GET", "/users", RouteTest.NOOP);
+            Assertions.assertThat(route.method()).isEqualTo("GET");
+            Assertions.assertThat(route.path()).isEqualTo("/users");
+            Assertions.assertThat(route.handler()).isNotNull();
         }
 
         @Test
         @DisplayName("normalizes method to uppercase")
         void normalizesMethod() {
-            Route route = Route.of("get", "/users", NOOP);
-            assertThat(route.method()).isEqualTo("GET");
+            final Route route = Route.of("get", "/users", RouteTest.NOOP);
+            Assertions.assertThat(route.method()).isEqualTo("GET");
         }
     }
 
@@ -39,15 +39,15 @@ class RouteTest {
         @Test
         @DisplayName("get() creates GET route")
         void getCreatesGetRoute() {
-            Route route = Route.get("/users", NOOP);
-            assertThat(route.method()).isEqualTo("GET");
+            final Route route = Route.get("/users", RouteTest.NOOP);
+            Assertions.assertThat(route.method()).isEqualTo("GET");
         }
 
         @Test
         @DisplayName("post() creates POST route")
         void postCreatesPostRoute() {
-            Route route = Route.post("/users", NOOP);
-            assertThat(route.method()).isEqualTo("POST");
+            final Route route = Route.post("/users", RouteTest.NOOP);
+            Assertions.assertThat(route.method()).isEqualTo("POST");
         }
     }
 
@@ -58,14 +58,14 @@ class RouteTest {
         @Test
         @DisplayName("rejects null method")
         void rejectsNullMethod() {
-            assertThatThrownBy(() -> Route.of(null, "/users", NOOP))
+            Assertions.assertThatThrownBy(() -> Route.of(null, "/users", RouteTest.NOOP))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         @DisplayName("rejects invalid HTTP method")
         void rejectsInvalidMethod() {
-            assertThatThrownBy(() -> Route.of("INVALID", "/users", NOOP))
+            Assertions.assertThatThrownBy(() -> Route.of("INVALID", "/users", RouteTest.NOOP))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -77,19 +77,19 @@ class RouteTest {
         @Test
         @DisplayName("hasParams() returns true for parameterized routes")
         void hasParamsWorks() {
-            Route withParams = Route.of("GET", "/users/:id", NOOP);
-            Route noParams = Route.of("GET", "/users", NOOP);
-            assertThat(withParams.hasParams()).isTrue();
-            assertThat(noParams.hasParams()).isFalse();
+            final Route withParams = Route.of("GET", "/users/:id", RouteTest.NOOP);
+            final Route noParams = Route.of("GET", "/users", RouteTest.NOOP);
+            Assertions.assertThat(withParams.hasParams()).isTrue();
+            Assertions.assertThat(noParams.hasParams()).isFalse();
         }
 
         @Test
         @DisplayName("hasWildcard() returns true for wildcard routes")
         void hasWildcardWorks() {
-            Route withWildcard = Route.of("GET", "/files/*", NOOP);
-            Route noWildcard = Route.of("GET", "/files", NOOP);
-            assertThat(withWildcard.hasWildcard()).isTrue();
-            assertThat(noWildcard.hasWildcard()).isFalse();
+            final Route withWildcard = Route.of("GET", "/files/*", RouteTest.NOOP);
+            final Route noWildcard = Route.of("GET", "/files", RouteTest.NOOP);
+            Assertions.assertThat(withWildcard.hasWildcard()).isTrue();
+            Assertions.assertThat(noWildcard.hasWildcard()).isFalse();
         }
     }
 }

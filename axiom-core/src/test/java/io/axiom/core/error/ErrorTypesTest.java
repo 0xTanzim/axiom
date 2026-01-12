@@ -1,8 +1,13 @@
 package io.axiom.core.error;
 
-import java.util.List;
+import java.util.*;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
+
+@DisplayName("Error Types")
+class ErrorTypesTest {
+
     @Nested
     @DisplayName("AxiomException")
     class AxiomExceptionTests {
@@ -10,17 +15,17 @@ import org.junit.jupiter.api.*;
         @Test
         @DisplayName("is base exception for all framework errors")
         void isBaseExceptionForAllFrameworkErrors() {
-            AxiomException exception = new AxiomException("test");
-            assertThat(exception).isInstanceOf(RuntimeException.class);
-            assertThat(exception.getMessage()).isEqualTo("test");
+            final AxiomException exception = new AxiomException("test");
+            Assertions.assertThat(exception).isInstanceOf(RuntimeException.class);
+            Assertions.assertThat(exception.getMessage()).isEqualTo("test");
         }
 
         @Test
         @DisplayName("supports cause chaining")
         void supportsCauseChaining() {
-            Exception cause = new RuntimeException("original");
-            AxiomException exception = new AxiomException("wrapped", cause);
-            assertThat(exception.getCause()).isSameAs(cause);
+            final Exception cause = new RuntimeException("original");
+            final AxiomException exception = new AxiomException("wrapped", cause);
+            Assertions.assertThat(exception.getCause()).isSameAs(cause);
         }
     }
 
@@ -31,16 +36,16 @@ import org.junit.jupiter.api.*;
         @Test
         @DisplayName("captures method and path")
         void capturesMethodAndPath() {
-            var exception = new RouteNotFoundException("GET", "/users/123");
-            assertThat(exception.method()).isEqualTo("GET");
-            assertThat(exception.path()).isEqualTo("/users/123");
+            final var exception = new RouteNotFoundException("GET", "/users/123");
+            Assertions.assertThat(exception.method()).isEqualTo("GET");
+            Assertions.assertThat(exception.path()).isEqualTo("/users/123");
         }
 
         @Test
         @DisplayName("generates descriptive message")
         void generatesDescriptiveMessage() {
-            var exception = new RouteNotFoundException("POST", "/api/data");
-            assertThat(exception.getMessage()).contains("POST").contains("/api/data");
+            final var exception = new RouteNotFoundException("POST", "/api/data");
+            Assertions.assertThat(exception.getMessage()).contains("POST").contains("/api/data");
         }
     }
 
@@ -51,17 +56,17 @@ import org.junit.jupiter.api.*;
         @Test
         @DisplayName("captures method, path, and allowed methods")
         void capturesMethodPathAndAllowedMethods() {
-            var exception = new MethodNotAllowedException("DELETE", "/users", List.of("GET", "POST"));
-            assertThat(exception.method()).isEqualTo("DELETE");
-            assertThat(exception.path()).isEqualTo("/users");
-            assertThat(exception.allowedMethods()).containsExactly("GET", "POST");
+            final var exception = new MethodNotAllowedException("DELETE", "/users", List.of("GET", "POST"));
+            Assertions.assertThat(exception.method()).isEqualTo("DELETE");
+            Assertions.assertThat(exception.path()).isEqualTo("/users");
+            Assertions.assertThat(exception.allowedMethods()).containsExactly("GET", "POST");
         }
 
         @Test
         @DisplayName("allowed methods list is immutable")
         void allowedMethodsListIsImmutable() {
-            var exception = new MethodNotAllowedException("PATCH", "/data", List.of("GET"));
-            assertThat(exception.allowedMethods()).isUnmodifiable();
+            final var exception = new MethodNotAllowedException("PATCH", "/data", List.of("GET"));
+            Assertions.assertThat(exception.allowedMethods()).isUnmodifiable();
         }
     }
 
@@ -72,17 +77,17 @@ import org.junit.jupiter.api.*;
         @Test
         @DisplayName("captures message and target type")
         void capturesMessageAndTargetType() {
-            var exception = new BodyParseException("Invalid JSON", String.class);
-            assertThat(exception.getMessage()).isEqualTo("Invalid JSON");
-            assertThat(exception.targetType()).isEqualTo(String.class);
+            final var exception = new BodyParseException("Invalid JSON", String.class);
+            Assertions.assertThat(exception.getMessage()).isEqualTo("Invalid JSON");
+            Assertions.assertThat(exception.targetType()).isEqualTo(String.class);
         }
 
         @Test
         @DisplayName("supports cause chaining")
         void supportsCauseChaining() {
-            Exception cause = new RuntimeException("parse error");
-            var exception = new BodyParseException("Failed to parse", Object.class, cause);
-            assertThat(exception.getCause()).isSameAs(cause);
+            final Exception cause = new RuntimeException("parse error");
+            final var exception = new BodyParseException("Failed to parse", Object.class, cause);
+            Assertions.assertThat(exception.getCause()).isSameAs(cause);
         }
     }
 
@@ -93,8 +98,8 @@ import org.junit.jupiter.api.*;
         @Test
         @DisplayName("has default descriptive message")
         void hasDefaultDescriptiveMessage() {
-            var exception = new ResponseCommittedException();
-            assertThat(exception.getMessage()).contains("committed");
+            final var exception = new ResponseCommittedException();
+            Assertions.assertThat(exception.getMessage()).contains("committed");
         }
     }
 
@@ -105,10 +110,10 @@ import org.junit.jupiter.api.*;
         @Test
         @DisplayName("all framework exceptions extend AxiomException")
         void allFrameworkExceptionsExtendAxiomException() {
-            assertThat(new RouteNotFoundException("GET", "/")).isInstanceOf(AxiomException.class);
-            assertThat(new MethodNotAllowedException("POST", "/", List.of("GET"))).isInstanceOf(AxiomException.class);
-            assertThat(new BodyParseException("error", String.class)).isInstanceOf(AxiomException.class);
-            assertThat(new ResponseCommittedException()).isInstanceOf(AxiomException.class);
+            Assertions.assertThat(new RouteNotFoundException("GET", "/")).isInstanceOf(AxiomException.class);
+            Assertions.assertThat(new MethodNotAllowedException("POST", "/", List.of("GET"))).isInstanceOf(AxiomException.class);
+            Assertions.assertThat(new BodyParseException("error", String.class)).isInstanceOf(AxiomException.class);
+            Assertions.assertThat(new ResponseCommittedException()).isInstanceOf(AxiomException.class);
         }
     }
 }

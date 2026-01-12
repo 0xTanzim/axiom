@@ -1,7 +1,7 @@
 package io.axiom.core.routing;
 
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.*;
 
 @DisplayName("Segment")
 class SegmentTest {
@@ -13,21 +13,21 @@ class SegmentTest {
         @Test
         @DisplayName("stores value correctly")
         void storesValueCorrectly() {
-            StaticSegment segment = new StaticSegment("users");
-            assertThat(segment.value()).isEqualTo("users");
+            final StaticSegment segment = new StaticSegment("users");
+            Assertions.assertThat(segment.value()).isEqualTo("users");
         }
 
         @Test
         @DisplayName("rejects null value")
         void rejectsNullValue() {
-            assertThatThrownBy(() -> new StaticSegment(null))
+            Assertions.assertThatThrownBy(() -> new StaticSegment(null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         @DisplayName("rejects empty value")
         void rejectsEmptyValue() {
-            assertThatThrownBy(() -> new StaticSegment(""))
+            Assertions.assertThatThrownBy(() -> new StaticSegment(""))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -39,22 +39,22 @@ class SegmentTest {
         @Test
         @DisplayName("stores name and generates value with colon prefix")
         void storesNameAndGeneratesValue() {
-            ParamSegment segment = new ParamSegment("id");
-            assertThat(segment.name()).isEqualTo("id");
-            assertThat(segment.value()).isEqualTo(":id");
+            final ParamSegment segment = new ParamSegment("id");
+            Assertions.assertThat(segment.name()).isEqualTo("id");
+            Assertions.assertThat(segment.value()).isEqualTo(":id");
         }
 
         @Test
         @DisplayName("rejects null name")
         void rejectsNullName() {
-            assertThatThrownBy(() -> new ParamSegment(null))
+            Assertions.assertThatThrownBy(() -> new ParamSegment(null))
                     .isInstanceOf(NullPointerException.class);
         }
 
         @Test
         @DisplayName("rejects empty name")
         void rejectsEmptyName() {
-            assertThatThrownBy(() -> new ParamSegment(""))
+            Assertions.assertThatThrownBy(() -> new ParamSegment(""))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -66,14 +66,14 @@ class SegmentTest {
         @Test
         @DisplayName("has wildcard value")
         void hasWildcardValue() {
-            WildcardSegment segment = WildcardSegment.INSTANCE;
-            assertThat(segment.value()).isEqualTo("*");
+            final WildcardSegment segment = WildcardSegment.INSTANCE;
+            Assertions.assertThat(segment.value()).isEqualTo("*");
         }
 
         @Test
         @DisplayName("is singleton")
         void isSingleton() {
-            assertThat(WildcardSegment.INSTANCE).isSameAs(WildcardSegment.INSTANCE);
+            Assertions.assertThat(WildcardSegment.INSTANCE).isSameAs(WildcardSegment.INSTANCE);
         }
     }
 }

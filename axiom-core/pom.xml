@@ -18,12 +18,22 @@
         <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+        <!-- Runtime dependencies -->
+        <jackson.version>2.18.2</jackson.version>
+
         <!-- Test dependencies -->
         <junit.version>5.11.0</junit.version>
         <assertj.version>3.26.0</assertj.version>
     </properties>
 
     <dependencies>
+        <!-- JSON processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
         <!-- Test dependencies only - core has zero runtime dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

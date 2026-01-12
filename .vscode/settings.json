@@ -1,0 +1,16 @@
+{
+  "editor.fontSize": 16,
+  "java.format.enabled": false,
+  "java.saveActions.organizeImports": false,
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
+  "java.completion.importOrder": [
+    "java",
+    "javax",
+    "org",
+    "com",
+    "io"
+  ],
+  "java.sources.organizeImports.starThreshold": 1,
+  "java.sources.organizeImports.staticStarThreshold": 1
+}

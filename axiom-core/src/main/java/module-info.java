@@ -29,6 +29,11 @@
  * @since 0.1.0
  */
 module io.axiom.core {
+    // Jackson dependency for JSON processing
+    requires com.fasterxml.jackson.core;
+    requires com.fasterxml.jackson.databind;
+    requires com.fasterxml.jackson.annotation;
+
     // Public API packages
     exports io.axiom.core.handler;
     exports io.axiom.core.context;
@@ -36,6 +41,7 @@ module io.axiom.core {
     exports io.axiom.core.middleware;
     exports io.axiom.core.error;
     exports io.axiom.core.app;
+    exports io.axiom.core.json;
 
     // Internal packages - NOT exported
     // io.axiom.core.routing.internal is hidden

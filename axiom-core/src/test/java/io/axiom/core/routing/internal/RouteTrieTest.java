@@ -1,12 +1,12 @@
 package io.axiom.core.routing.internal;
 
-import java.util.List;
+import java.util.*;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
 
-import io.axiom.core.handler.Handler;
-import io.axiom.core.routing.Route;
-import io.axiom.core.routing.RouteMatch;
+import io.axiom.core.handler.*;
+import io.axiom.core.routing.*;
 
 @DisplayName("RouteTrie")
 class RouteTrieTest {
@@ -17,7 +17,7 @@ class RouteTrieTest {
 
     @BeforeEach
     void setUp() {
-        trie = new RouteTrie();
+        this.trie = new RouteTrie();
     }
 
     @Nested
@@ -27,54 +27,54 @@ class RouteTrieTest {
         @Test
         @DisplayName("inserts static route")
         void insertsStaticRoute() {
-            Route route = Route.get("/users", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/users", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("GET", "/users");
-            assertThat(match).isNotNull();
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/users");
+            Assertions.assertThat(match).isNotNull();
         }
 
         @Test
         @DisplayName("inserts parameterized route")
         void insertsParameterizedRoute() {
-            Route route = Route.get("/users/:id", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/users/:id", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("GET", "/users/123");
-            assertThat(match).isNotNull();
-            assertThat(match.params()).containsEntry("id", "123");
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/users/123");
+            Assertions.assertThat(match).isNotNull();
+            Assertions.assertThat(match.params()).containsEntry("id", "123");
         }
 
         @Test
         @DisplayName("inserts wildcard route")
         void insertsWildcardRoute() {
-            Route route = Route.get("/files/*", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/files/*", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("GET", "/files/path/to/file.txt");
-            assertThat(match).isNotNull();
-            assertThat(match.params()).containsEntry("*", "path/to/file.txt");
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/files/path/to/file.txt");
+            Assertions.assertThat(match).isNotNull();
+            Assertions.assertThat(match.params()).containsEntry("*", "path/to/file.txt");
         }
 
         @Test
         @DisplayName("throws on duplicate route")
         void throwsOnDuplicateRoute() {
-            Route route1 = Route.get("/users", NOOP);
-            Route route2 = Route.get("/users", NOOP);
+            final Route route1 = Route.get("/users", RouteTrieTest.NOOP);
+            final Route route2 = Route.get("/users", RouteTrieTest.NOOP);
 
-            trie.insert(route1);
-            assertThatThrownBy(() -> trie.insert(route2))
+            RouteTrieTest.this.trie.insert(route1);
+            Assertions.assertThatThrownBy(() -> RouteTrieTest.this.trie.insert(route2))
                     .isInstanceOf(RouteConflictException.class);
         }
 
         @Test
         @DisplayName("throws on parameter name conflict")
         void throwsOnParameterNameConflict() {
-            Route route1 = Route.get("/users/:id", NOOP);
-            Route route2 = Route.get("/users/:userId/posts", NOOP);
+            final Route route1 = Route.get("/users/:id", RouteTrieTest.NOOP);
+            final Route route2 = Route.get("/users/:userId/posts", RouteTrieTest.NOOP);
 
-            trie.insert(route1);
-            assertThatThrownBy(() -> trie.insert(route2))
+            RouteTrieTest.this.trie.insert(route1);
+            Assertions.assertThatThrownBy(() -> RouteTrieTest.this.trie.insert(route2))
                     .isInstanceOf(RouteConflictException.class);
         }
     }
@@ -86,67 +86,67 @@ class RouteTrieTest {
         @Test
         @DisplayName("matches root path")
         void matchesRootPath() {
-            Route route = Route.get("/", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("GET", "/");
-            assertThat(match).isNotNull();
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/");
+            Assertions.assertThat(match).isNotNull();
         }
 
         @Test
         @DisplayName("prioritizes static over parameter")
         void prioritizesStaticOverParameter() {
-            Route staticRoute = Route.get("/users/admin", NOOP);
-            Route paramRoute = Route.get("/users/:id", NOOP);
+            final Route staticRoute = Route.get("/users/admin", RouteTrieTest.NOOP);
+            final Route paramRoute = Route.get("/users/:id", RouteTrieTest.NOOP);
 
-            trie.insert(staticRoute);
-            trie.insert(paramRoute);
+            RouteTrieTest.this.trie.insert(staticRoute);
+            RouteTrieTest.this.trie.insert(paramRoute);
 
-            RouteMatch match = trie.match("GET", "/users/admin");
-            assertThat(match.route().path()).isEqualTo("/users/admin");
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/users/admin");
+            Assertions.assertThat(match.route().path()).isEqualTo("/users/admin");
         }
 
         @Test
         @DisplayName("prioritizes parameter over wildcard")
         void prioritizesParameterOverWildcard() {
-            Route paramRoute = Route.get("/files/:name", NOOP);
-            Route wildcardRoute = Route.get("/files/*", NOOP);
+            final Route paramRoute = Route.get("/files/:name", RouteTrieTest.NOOP);
+            final Route wildcardRoute = Route.get("/files/*", RouteTrieTest.NOOP);
 
-            trie.insert(paramRoute);
-            trie.insert(wildcardRoute);
+            RouteTrieTest.this.trie.insert(paramRoute);
+            RouteTrieTest.this.trie.insert(wildcardRoute);
 
-            RouteMatch match = trie.match("GET", "/files/document.pdf");
-            assertThat(match.route().path()).isEqualTo("/files/:name");
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/files/document.pdf");
+            Assertions.assertThat(match.route().path()).isEqualTo("/files/:name");
         }
 
         @Test
         @DisplayName("returns null for non-matching path")
         void returnsNullForNonMatchingPath() {
-            Route route = Route.get("/users", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/users", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("GET", "/posts");
-            assertThat(match).isNull();
+            final RouteMatch match = RouteTrieTest.this.trie.match("GET", "/posts");
+            Assertions.assertThat(match).isNull();
         }
 
         @Test
         @DisplayName("returns null for non-matching method")
         void returnsNullForNonMatchingMethod() {
-            Route route = Route.get("/users", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/users", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("POST", "/users");
-            assertThat(match).isNull();
+            final RouteMatch match = RouteTrieTest.this.trie.match("POST", "/users");
+            Assertions.assertThat(match).isNull();
         }
 
         @Test
         @DisplayName("normalizes method to uppercase")
         void normalizesMethodToUppercase() {
-            Route route = Route.get("/users", NOOP);
-            trie.insert(route);
+            final Route route = Route.get("/users", RouteTrieTest.NOOP);
+            RouteTrieTest.this.trie.insert(route);
 
-            RouteMatch match = trie.match("get", "/users");
-            assertThat(match).isNotNull();
+            final RouteMatch match = RouteTrieTest.this.trie.match("get", "/users");
+            Assertions.assertThat(match).isNotNull();
         }
     }
 
@@ -157,19 +157,19 @@ class RouteTrieTest {
         @Test
         @DisplayName("returns empty list when no routes")
         void returnsEmptyWhenNoRoutes() {
-            List<Route> routes = trie.routes();
-            assertThat(routes).isEmpty();
+            final List<Route> routes = RouteTrieTest.this.trie.routes();
+            Assertions.assertThat(routes).isEmpty();
         }
 
         @Test
         @DisplayName("returns all registered routes")
         void returnsAllRegisteredRoutes() {
-            trie.insert(Route.get("/users", NOOP));
-            trie.insert(Route.post("/users", NOOP));
-            trie.insert(Route.get("/posts", NOOP));
+            RouteTrieTest.this.trie.insert(Route.get("/users", RouteTrieTest.NOOP));
+            RouteTrieTest.this.trie.insert(Route.post("/users", RouteTrieTest.NOOP));
+            RouteTrieTest.this.trie.insert(Route.get("/posts", RouteTrieTest.NOOP));
 
-            List<Route> routes = trie.routes();
-            assertThat(routes).hasSize(3);
+            final List<Route> routes = RouteTrieTest.this.trie.routes();
+            Assertions.assertThat(routes).hasSize(3);
         }
     }
 
@@ -180,21 +180,21 @@ class RouteTrieTest {
         @Test
         @DisplayName("returns methods for matching path")
         void returnsMethodsForMatchingPath() {
-            trie.insert(Route.get("/users", NOOP));
-            trie.insert(Route.post("/users", NOOP));
-            trie.insert(Route.delete("/users", NOOP));
+            RouteTrieTest.this.trie.insert(Route.get("/users", RouteTrieTest.NOOP));
+            RouteTrieTest.this.trie.insert(Route.post("/users", RouteTrieTest.NOOP));
+            RouteTrieTest.this.trie.insert(Route.delete("/users", RouteTrieTest.NOOP));
 
-            List<String> methods = trie.allowedMethods("/users");
-            assertThat(methods).containsExactlyInAnyOrder("GET", "POST", "DELETE");
+            final List<String> methods = RouteTrieTest.this.trie.allowedMethods("/users");
+            Assertions.assertThat(methods).containsExactlyInAnyOrder("GET", "POST", "DELETE");
         }
 
         @Test
         @DisplayName("returns empty list for non-matching path")
         void returnsEmptyForNonMatchingPath() {
-            trie.insert(Route.get("/users", NOOP));
+            RouteTrieTest.this.trie.insert(Route.get("/users", RouteTrieTest.NOOP));
 
-            List<String> methods = trie.allowedMethods("/posts");
-            assertThat(methods).isEmpty();
+            final List<String> methods = RouteTrieTest.this.trie.allowedMethods("/posts");
+            Assertions.assertThat(methods).isEmpty();
         }
     }
 
@@ -205,17 +205,17 @@ class RouteTrieTest {
         @Test
         @DisplayName("returns true for existing path")
         void returnsTrueForExistingPath() {
-            trie.insert(Route.get("/users", NOOP));
+            RouteTrieTest.this.trie.insert(Route.get("/users", RouteTrieTest.NOOP));
 
-            assertThat(trie.hasPath("/users")).isTrue();
+            Assertions.assertThat(RouteTrieTest.this.trie.hasPath("/users")).isTrue();
         }
 
         @Test
         @DisplayName("returns false for non-existing path")
         void returnsFalseForNonExistingPath() {
-            trie.insert(Route.get("/users", NOOP));
+            RouteTrieTest.this.trie.insert(Route.get("/users", RouteTrieTest.NOOP));
 
-            assertThat(trie.hasPath("/posts")).isFalse();
+            Assertions.assertThat(RouteTrieTest.this.trie.hasPath("/posts")).isFalse();
         }
     }
 }
