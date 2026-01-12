@@ -1,13 +1,33 @@
 # Axiom Framework — Progress Report
 
 **Date:** January 12, 2026
-**Status:** Phase 1 Complete ✅
+**Status:** Phase 1 + Runtime Complete ✅
 
 ---
 
-## What We've Done (Phase 1)
+## What We've Done
+
+### Phase 1: Core Routing Infrastructure
 
 Phase 1 established the **core routing infrastructure** for Axiom — a modern, DX-first Java web framework targeting Java 25 LTS.
+
+### Phase 2: Runtime Adapter + Server SPI
+
+Implemented **auto-discovering server runtime** via ServiceLoader SPI.
+
+| Package | Component | Description |
+|---------|-----------|-------------|
+| `io.axiom.core.server` | `Server` | HTTP server abstraction interface |
+| `io.axiom.core.server` | `ServerFactory` | SPI for server runtime discovery |
+| `io.axiom.server` | `JdkServer` | JDK HttpServer with virtual threads |
+| `io.axiom.server` | `JdkServerFactory` | ServiceLoader-discovered factory |
+
+**Key Features:**
+- ✅ Zero-config server startup: `app.listen(8080)` auto-discovers runtime
+- ✅ Virtual threads via `Executors.newVirtualThreadPerTaskExecutor()`
+- ✅ Java 25 compatible (JEP 491 fixes synchronized pinning)
+- ✅ JPMS `provides`/`uses` + META-INF/services fallback
+- ✅ SPI allows multiple runtime implementations (JDK, Netty, etc.)
 
 ### Completed Components
 
@@ -31,11 +51,19 @@ Phase 1 established the **core routing infrastructure** for Axiom — a modern, 
 | `io.axiom.core.error` | `MethodNotAllowedException` | 405 error type |
 | `io.axiom.core.error` | `BodyParseException` | Body parsing error |
 | `io.axiom.core.error` | `ResponseCommittedException` | Response already sent error |
+| `io.axiom.core.app` | `App` | Application interface |
+| `io.axiom.core.app` | `DefaultApp` | Default implementation with middleware chain |
+| `io.axiom.core.app` | `Axiom` | Factory with server auto-discovery |
+| `io.axiom.core.server` | `Server` | HTTP server abstraction |
+| `io.axiom.core.server` | `ServerFactory` | SPI for runtime discovery |
+| `io.axiom.server` | `JdkServer` | JDK HttpServer + virtual threads |
+| `io.axiom.server` | `JdkServerFactory` | Default server factory |
 
 ### Test Coverage
 
-- **79 tests** passing
-- Tests cover routing, middleware, error types
+- **144 tests** passing (135 core + 9 integration)
+- Tests cover routing, middleware, error types, app composition, JSON codec
+- Integration tests verify real HTTP requests through JdkServer
 - JUnit 5 + AssertJ for assertions
 
 ### Architecture Principles Applied
@@ -46,44 +74,32 @@ Phase 1 established the **core routing infrastructure** for Axiom — a modern, 
 - ✅ Sealed interfaces for segment types
 - ✅ Trie-based O(depth) routing
 - ✅ No annotations required
+- ✅ SPI-based server discovery (core doesn't depend on runtime)
+- ✅ Virtual threads for massive concurrency
 
 ---
 
-## What's Next (Phase 2)
+## User DX
 
-Based on the RFCs, the next phase focuses on:
+```java
+// Create app (no runtime mention needed!)
+App app = Axiom.create();
 
-### 1. Context Implementation (RFC-0001)
+// Register routes
+Router router = new Router();
+router.get("/hello", ctx -> ctx.text("Hello!"));
+router.get("/users/:id", ctx -> ctx.json(userService.find(ctx.param("id"))));
 
-The `Context` interface needs concrete implementation with:
+// Add middleware
+app.use((ctx, next) -> {
+    log.info("Request: {} {}", ctx.method(), ctx.path());
+    next.run();
+});
 
-- Request access (`path()`, `method()`, `param()`, `query()`, `header()`, `body()`)
-- Response methods (`status()`, `text()`, `json()`, `html()`)
-- State management (`get()`, `set()`)
-
-### 2. Application Entry Point (RFC-0002)
-
-Create the `App` class that:
-
-- Mounts routers via `route()` method
-- Applies global middleware via `use()`
-- Starts server via `listen(port)`
-- Supports both middleware and before/after hooks
-
-### 3. Middleware Integration (RFC-0004, RFC-0005)
-
-Complete the middleware pipeline:
-
-- Public `MiddlewareHandler` with `(Context, Next)` signature
-- Adapt user-facing API to internal `Middleware` type
-- Support both middleware style and before/after hooks
-
-### 4. Runtime Adapters
-
-Create runtime implementations:
-
-- JDK HttpServer adapter (development)
-- Netty adapter (production, optional)
+// Mount routes and start
+app.route(router);
+app.listen(8080);  // Auto-discovers jdk-httpserver runtime
+```
 
 ---
 
@@ -91,12 +107,16 @@ Create runtime implementations:
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| RFC-0001 | Core Design & Handler API | Partial (Handler done, Context pending) |
-| RFC-0002 | Routing & App Composition | Partial (Router done, App pending) |
+| RFC-0001 | Core Design & Handler API | ✅ Complete (Handler, Context, DefaultContext) |
+| RFC-0002 | Routing & App Composition | ✅ Complete (Router, App, DefaultApp, Axiom) |
 | RFC-0003 | Routing Matcher Algorithm | ✅ Complete (RouteTrie implemented) |
-| RFC-0004 | Middleware Pipeline | Partial (internal done, public API pending) |
+| RFC-0004 | Middleware Pipeline | ✅ Complete (dual style: explicit next + ctx.next()) |
 | RFC-0005 | DX Philosophy & Style Freedom | Design only |
-| RFC-0006 | Build Tool & Kotlin Strategy | Design only |
+| RFC-0006 | JSON Codec Strategy | ✅ Complete (JsonCodec, JacksonCodec) |
+| RFC-0007 | Lifecycle Management | ❌ Not written |
+| RFC-0008 | Error Handling Architecture | ❌ Not written |
+| RFC-0009 | Runtime Adapter Contract | ❌ Not written |
+| RFC-0010 | Testing Utilities API | ❌ Not written |
 
 ---
 
@@ -111,20 +131,24 @@ Create runtime implementations:
 
 ## Immediate Next Steps
 
-1. **Implement `Context`** — concrete request/response handling
-2. **Create `App` class** — application entry point with router mounting
-3. **Add JDK HttpServer adapter** — minimal runtime for development
-4. **Complete public middleware API** — user-facing `(Context, Next)` signature
+1. ✅ ~~Implement `Context`~~ — **DONE** (DefaultContext with JSON support)
+2. ✅ ~~Create `App` class~~ — **DONE** (App, DefaultApp, Axiom factory)
+3. ✅ ~~Complete public middleware API~~ — **DONE** (dual style supported)
+4. **Add JDK HttpServer runtime adapter** — **NEXT TARGET** (make framework runnable)
+5. **Write RFC-0009** — Runtime Adapter Contract
+6. **Create example application** — Demonstrate complete usage
 
-The goal is to achieve the target DX from RFC-0001:
+**Current Blocker:** No runtime adapter = framework can't actually serve HTTP
+
+The target DX from RFC-0001 is **90% achievable**:
 
 ```java
 Router router = new Router();
-router.get("/health", c -> c.text("OK"));
-router.get("/users/:id", c -> c.json(userService.find(c.param("id"))));
+router.get("/health", ctx -> ctx.text("OK"));
+router.get("/users/:id", ctx -> ctx.json(userService.find(ctx.param("id"))));
 
-App app = new App();
+App app = Axiom.create();
 app.use(auth());
 app.route(router);
-app.listen(8080);
+app.listen(8080); // ⚠️ NEEDS RUNTIME ADAPTER
 ```

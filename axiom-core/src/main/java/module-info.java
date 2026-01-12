@@ -42,6 +42,10 @@ module io.axiom.core {
     exports io.axiom.core.error;
     exports io.axiom.core.app;
     exports io.axiom.core.json;
+    exports io.axiom.core.server;
+
+    // SPI for server runtime discovery
+    uses io.axiom.core.server.ServerFactory;
 
     // Internal packages - NOT exported
     // io.axiom.core.routing.internal is hidden

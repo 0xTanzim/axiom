@@ -8,14 +8,15 @@ import io.axiom.core.error.*;
 import io.axiom.core.handler.*;
 import io.axiom.core.middleware.*;
 import io.axiom.core.routing.*;
+import io.axiom.core.server.*;
 
 /**
  * Default implementation of {@link App}.
  *
  * <p>
  * This implementation handles middleware composition, route matching,
- * and error handling. It does NOT include an HTTP server — that is
- * provided by runtime adapters.
+ * and error handling. The HTTP server is provided by runtime adapters
+ * discovered via {@link java.util.ServiceLoader}.
  *
  * <h2>Architecture</h2>
  * <p>
@@ -23,19 +24,23 @@ import io.axiom.core.routing.*;
  * <ul>
  * <li>Collects middleware and routes during configuration</li>
  * <li>Builds the handler chain when the app starts</li>
- * <li>Delegates HTTP serving to a runtime adapter</li>
+ * <li>Auto-discovers server runtime via SPI</li>
  * </ul>
  *
  * <h2>Usage</h2>
  *
  * <pre>{@code
- * DefaultApp app = new DefaultApp();
+ * App app = Axiom.create();
  * app.use((ctx, next) -> { log(ctx.path()); next.run(); });
  * app.route(userRouter);
- * app.onError((ctx, e) -> { ctx.status(500); ctx.json(error(e)); });
+ * app.listen(8080);  // Auto-discovers server!
+ * }</pre>
  *
- * // For testing or manual integration
- * Handler handler = app.buildHandler();
+ * <h2>Testing</h2>
+ *
+ * <pre>{@code
+ * DefaultApp app = Axiom.createDefault();
+ * Handler handler = app.buildHandler();  // No server needed
  * }</pre>
  *
  * @since 0.1.0
@@ -48,6 +53,7 @@ public class DefaultApp implements App {
 
     private volatile boolean started;
     private volatile Handler composedHandler;
+    private volatile Server activeServer;
 
     public DefaultApp() {
         this.middlewares = new ArrayList<>();
@@ -151,24 +157,33 @@ public class DefaultApp implements App {
 
     @Override
     public void listen(final String host, final int port) {
-        throw new UnsupportedOperationException(
-                "DefaultApp does not include an HTTP server. " +
-                        "Use a runtime adapter (e.g., JdkServerApp) or call buildHandler() for testing.");
+        this.ensureNotStarted();
+
+        final var server = Axiom.createServer();
+        server.handler(this.buildHandler());
+        server.start(host, port);
+
+        this.activeServer = server;
+        this.started = true;
     }
 
     @Override
     public int port() {
-        return -1;
+        return this.activeServer != null ? this.activeServer.port() : -1;
     }
 
     @Override
     public void stop() {
+        if (this.activeServer != null) {
+            this.activeServer.stop();
+            this.activeServer = null;
+        }
         this.started = false;
     }
 
     @Override
     public boolean isRunning() {
-        return this.started;
+        return this.started && this.activeServer != null && this.activeServer.isRunning();
     }
 
     // ========== Handler Building ==========
