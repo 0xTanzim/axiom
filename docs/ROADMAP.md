@@ -1,47 +1,55 @@
 # Axiom Framework — Roadmap
 
-**Date:** January 17, 2026
-**Current Progress:** ~85% of core RFC scope
-**Tests:** 144 passing
+**Date:** January 2026
+**Current Progress:** ~90% of core RFC scope
+**Tests:** 204 passing (135 core + 9 server + 44 persistence + 16 processor)
 
 ---
 
 ## Current State Summary
 
-### ✅ Completed (Phase 1-3)
+### ✅ Completed (Phase 1-3 + Persistence)
 
-| RFC | Feature | Status |
-|-----|---------|--------|
-| RFC-0001 | Handler, Context, DefaultContext | ✅ Complete |
-| RFC-0002 | Router, App, Axiom factory | ✅ Complete |
-| RFC-0003 | Trie-based routing | ✅ Complete |
-| RFC-0004 | Middleware pipeline (dual style) | ✅ Complete |
-| RFC-0005 | DX philosophy applied | ✅ Complete |
-| RFC-0006 | Build tool agnostic | ✅ Complete |
-| RFC-0007 | Lifecycle management | ✅ Complete |
-| RFC-0008 | Structured error flow | ✅ Complete |
-| RFC-0009 | Server SPI + JDK adapter | ✅ Complete |
+| RFC | Feature | Status | Tests |
+|-----|---------|--------|-------|
+| RFC-0001 | Handler, Context, DefaultContext | ✅ Complete | 135 |
+| RFC-0002 | Router, App, Axiom factory | ✅ Complete | ↑ |
+| RFC-0003 | Trie-based routing | ✅ Complete | ↑ |
+| RFC-0004 | Middleware pipeline (dual style) | ✅ Complete | ↑ |
+| RFC-0005 | DX philosophy applied | ✅ Complete | - |
+| RFC-0006 | Build tool agnostic | ✅ Complete | - |
+| RFC-0007 | Lifecycle management | ✅ Complete | ↑ |
+| RFC-0008 | Structured error flow | ✅ Complete | ↑ |
+| RFC-0009 | Server SPI + JDK adapter | ✅ Complete | 9 |
+| RFC-0011 | Persistence & transactions | ✅ **COMPLETE** | 60 |
 
-### ❌ Not Implemented
+### ❌ Not Yet Implemented
 
-| RFC | Feature | Priority |
-|-----|---------|----------|
-| RFC-0012 | Logging (SLF4J) | **P0** |
-| RFC-0010 | Testing utilities | **P0** |
-| RFC-0011 | Persistence & transactions | P1 |
-| RFC-0013 | Configuration system | P1 |
-| RFC-0014 | Validation (JSR-380) | P2 |
+| RFC | Feature | Priority | Status |
+|-----|---------|----------|--------|
+| RFC-0012 | Logging (SLF4J) | **P0 CRITICAL** | RFC exists, needs implementation |
+| RFC-0013 | Configuration system | P1 | **RFC NEEDED** |
+| RFC-0010 | Testing utilities | P1 | RFC exists, needs implementation |
+| RFC-0014 | Validation (JSR-380) | P2 | Future |
 
 ---
 
-## Phase 4: Logging Integration (RFC-0012) — NEW
+## Phase 4: Logging Integration (RFC-0012) — NEXT
 
-**Priority:** P0 (Production Requirement)
+**Priority:** P0 CRITICAL (Production Requirement)
 **Estimated effort:** 2-3 days
+**RFC Status:** ✅ RFC exists at `draft/RFC_0012.md`
 
 ### Why This First?
 
-Current state: `System.err.println()` — NOT production-ready.
+Current state: `System.err.println()` in `DefaultApp.java` — **NOT production-ready**.
+
+Found 5 occurrences:
+- Line 286: Exception handling
+- Line 364: Ready hook failure
+- Line 384: Stop hook failure
+- Line 455: Shutdown handler failure
+- Line 496: Request handler error
 
 ### What to Add
 
@@ -63,10 +71,37 @@ LOG.warn("Ready hook failed: {}", e.getMessage(), e);
 
 ---
 
-## Phase 5: Testing Utilities (RFC-0010)
+## Phase 5: Configuration System (RFC-0013) — RFC NEEDED
 
 **Priority:** P1
 **Estimated effort:** 1 week
+**RFC Status:** ❌ RFC document doesn't exist yet
+
+### What to Add
+
+```properties
+# application.properties
+server.port=8080
+server.host=0.0.0.0
+
+axiom.datasource.url=jdbc:postgresql://localhost/mydb
+axiom.datasource.username=user
+axiom.datasource.password=pass
+axiom.datasource.pool.size=10
+```
+
+- Properties file support
+- Environment variable override
+- Type-safe config objects
+- Programmatic override still available
+
+---
+
+## Phase 6: Testing Utilities (RFC-0010)
+
+**Priority:** P1
+**Estimated effort:** 1 week
+**RFC Status:** ✅ RFC exists at `draft/RFC_0010.md`
 
 ### What to Add
 
@@ -129,93 +164,53 @@ client.stop();
 
 ---
 
-## Phase 6: Persistence Layer (RFC-0011)
+## Phase 7: Persistence Layer (RFC-0011) — ✅ COMPLETE
 
 **Priority:** P1
-**Estimated effort:** 3-4 weeks
+**Status:** ✅ **COMPLETE** (60 tests passing)
+**RFC:** `draft/RFC_0011.md`
 
 RFC-0011 defines a comprehensive persistence and transaction system.
 
-### Core Principles
+### ✅ Implemented Features
 
-1. **Single module for users:** `axiom-persistence`
-2. **JPA/Hibernate as primary** — most developers expect ORM
-3. **jOOQ and JDBC as first-class** — not second-class citizens
-4. **Mix freely** — ORM + jOOQ + JDBC in same transaction
-5. **Framework magic for infrastructure only** — not application logic
-6. **Use existing libraries** — HikariCP, Hibernate, Flyway
+1. **Zero-Config Startup**
+```java
+AxiomPersistence.start();  // That's it - auto-discovers config
+```
+
+2. **Transaction Management**
+```java
+Transaction.execute(() -> {
+    entityManager.persist(order);
+    dsl.update(INVENTORY)...
+    jdbc.execute("INSERT INTO audit_log...");
+});
+```
+
+3. **Compile-time AOP** - @Transactional without runtime proxies
+4. **Scoped Values** - Java 25 feature for transaction binding
+5. **HikariCP** - Industry standard connection pooling
+6. **Flyway** - Automatic migrations
+7. **JPA + jOOQ + JDBC** - Mix freely in same transaction
 
 ### Architecture
 
 ```
-axiom-persistence/
+axiom-persistence/           (44 tests)
 ├── core/          # Transaction abstraction, DataSource
 ├── jpa/           # JPA/Hibernate integration
 ├── jooq/          # jOOQ integration
 ├── jdbc/          # Plain JDBC support
 └── flyway/        # Migration support
+
+axiom-persistence-processor/ (16 tests)
+└── @Transactional annotation processor
 ```
-
-### Key Features
-
-#### Zero-Config Startup
-```java
-AxiomPersistence.start();  // That's it
-```
-
-#### Transaction Management
-```java
-@Transactional
-public void createOrder(Order order) {
-    // JPA for entity persistence
-    entityManager.persist(order);
-
-    // jOOQ for complex query
-    dsl.update(INVENTORY)
-       .set(INVENTORY.QUANTITY, INVENTORY.QUANTITY.minus(order.quantity()))
-       .where(INVENTORY.PRODUCT_ID.eq(order.productId()))
-       .execute();
-
-    // Plain JDBC for legacy integration
-    jdbc.execute("INSERT INTO audit_log VALUES (?, ?, ?)", ...);
-}
-```
-
-### Implementation Strategy
-
-1. **HikariCP as default pool** — industry standard
-2. **Scoped Values for transaction binding** — Java 25 feature, better than ThreadLocal
-3. **Compile-time AOP** — @Transactional without runtime proxies
-4. **Flyway integration** — automatic migrations
 
 ---
 
-## Phase 7: Configuration System (RFC-0013) — PLANNED
-
-**Priority:** P1
-**Estimated effort:** 1 week
-
-### What to Add
-
-```properties
-# application.properties
-server.port=8080
-server.host=0.0.0.0
-
-axiom.datasource.url=jdbc:postgresql://localhost/mydb
-axiom.datasource.username=user
-axiom.datasource.password=pass
-axiom.datasource.pool.size=10
-```
-
-- Properties file support
-- Environment variable override
-- Type-safe config objects
-- Programmatic override still available
-
----
-
-## Future Considerations (Beyond MVP)
+## Phase 8: Future RFCs
 
 ### Validation (RFC-0014)
 - Bean Validation (JSR-380) integration
@@ -246,10 +241,10 @@ axiom.datasource.pool.size=10
 | Phase 1: Core Engine | January 2026 | ✅ Complete |
 | Phase 2: Routing + Middleware | January 2026 | ✅ Complete |
 | Phase 3: Lifecycle + Config | January 2026 | ✅ Complete |
-| Phase 4: Logging (SLF4J) | January 2026 | 📋 Next |
-| Phase 5: Testing Utilities | February 2026 | 📋 Planned |
-| Phase 6: Persistence Layer | Q1 2026 | 📝 RFC Draft |
-| Phase 7: Configuration System | Q1 2026 | 📋 Planned |
+| Phase 4: Logging (SLF4J) | January 2026 | 📋 **NEXT** |
+| Phase 5: Configuration System | January 2026 | 📝 RFC Needed |
+| Phase 6: Testing Utilities | February 2026 | 📋 Planned |
+| Phase 7: Persistence Layer | January 2026 | ✅ **COMPLETE** |
 | MVP Release (0.1.0) | Q2 2026 | 🎯 Target |
 
 ---
@@ -268,9 +263,9 @@ axiom.datasource.pool.size=10
 | RFC-0008 | Error Handling Architecture | ✅ Implemented |
 | RFC-0009 | Runtime Adapter Contract | ✅ Implemented |
 | RFC-0010 | Testing Utilities | 📋 Planned |
-| RFC-0011 | Persistence & Transaction | 📝 Draft |
-| RFC-0012 | Logging (SLF4J) | 📝 **NEW** Draft |
-| RFC-0013 | Configuration System | 📋 Planned |
+| RFC-0011 | Persistence & Transaction | ✅ **COMPLETE** |
+| RFC-0012 | Logging (SLF4J) | 📋 **NEXT** |
+| RFC-0013 | Configuration System | 📝 **RFC NEEDED** |
 | RFC-0014 | Validation (JSR-380) | 📋 Future |
 | RFC-0015 | Observability | 📋 Future |
 
@@ -313,18 +308,37 @@ axiom.datasource.pool.size=10
 
 ---
 
-## RFC Index
+## Lombok Compatibility
 
-| RFC | Title | Status |
-|-----|-------|--------|
-| RFC-0001 | Core Design & Handler API | ✅ Implemented |
-| RFC-0002 | Routing & App Composition | ✅ Implemented |
-| RFC-0003 | Routing Matcher Algorithm | ✅ Implemented |
-| RFC-0004 | Middleware Pipeline | ✅ Implemented |
-| RFC-0005 | DX Philosophy | ✅ Applied |
-| RFC-0006 | Build Tool Strategy | ✅ Implemented |
-| RFC-0007 | Lifecycle Management | ✅ Implemented |
-| RFC-0008 | Error Handling Architecture | ✅ Implemented |
-| RFC-0009 | Runtime Adapter Contract | ✅ Implemented |
-| RFC-0010 | Testing Utilities | 📋 Next |
-| RFC-0011 | Persistence & Transaction | 📝 Draft |
+Axiom is **naturally compatible** with Lombok. No framework changes needed.
+
+### Why It Works
+
+- Lombok is a compile-time annotation processor
+- It generates bytecode at compile time (getters, setters, builders)
+- Axiom sees regular Java classes at runtime
+- No runtime reflection conflicts
+
+### Recommendation
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Simple DTOs | Java Records (Java 25 native) |
+| Complex entities | Lombok `@Data`, `@Builder` |
+| JPA entities | Lombok `@Getter`, `@Setter` (avoid `@Data` with JPA) |
+
+### Example
+
+```java
+// Works perfectly with Axiom
+@Data
+@Builder
+public class User {
+    private Long id;
+    private String name;
+    private String email;
+}
+
+// Handler using Lombok-generated class
+ctx.json(User.builder().id(1L).name("John").build());
+```

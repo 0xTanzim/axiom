@@ -12,5 +12,6 @@
     "io"
   ],
   "java.sources.organizeImports.starThreshold": 1,
-  "java.sources.organizeImports.staticStarThreshold": 1
+  "java.sources.organizeImports.staticStarThreshold": 1,
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

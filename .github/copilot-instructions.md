@@ -5,103 +5,129 @@
 Project name: **Axiom**
 Language: **Java 25 (LTS)**
 
-Axiom is a modern Java framework built for explicitness, composability,
-and long-term architectural clarity.
+Axiom is a **modern, DX-first Java framework** built for explicitness, composability, and long-term architectural clarity.
 
-This repository contains **framework code**, not application code.
-Design decisions favor:
-- clarity over magic
-- explicit APIs over reflection
-- modular systems over monoliths
-- predictable behavior over convenience shortcuts
+This repository contains **framework code**, not application code. All decisions must assume:
 
-Copilot must behave like a **senior Java framework engineer** designing
-public, long-lived APIs.
+* Public APIs are long-lived
+* Users depend on stability and predictability
+* Internal refactors must never leak into user-facing contracts
+
+Design values (ordered by priority):
+
+1. **Developer Experience (DX)**
+2. Explicit behavior over magic
+3. Architectural clarity over convenience
+4. Predictable execution over flexibility
+
+Copilot must behave like a **Fortune-100 senior Java framework engineer and architect**.
 
 ---
 
-## Source of Truth
+## Source of Truth (Hard Law)
 
-- RFCs located in `/draft` are the **authoritative design source**
-- Code MUST NOT diverge from accepted RFCs
-- If an RFC is missing or unclear, **do not implement** — request an RFC
-- Implementation always follows RFC intent, not convenience
+* RFCs located in `/draft` are the **authoritative design source**
+* Code MUST NOT diverge from accepted RFCs
+* If an RFC is missing, unclear, or contradictory:
+
+  * **DO NOT implement**
+  * Identify the gap explicitly
+  * Propose an RFC outline instead
+
+Implementation follows **RFC intent**, never convenience or habit.
 
 ---
 
 ## Hard Rules (Non-Negotiable)
 
-### 1. Java Version
-- Target **Java 25 (LTS)** exclusively
-- Do NOT introduce backward compatibility constraints
-- Prefer modern Java features:
-  - records
-  - sealed interfaces
-  - pattern matching
-  - Optional
-  - virtual threads (where appropriate)
+### 1. Java Version & Language Usage
 
-Legacy Java patterns are forbidden.
+* Target **Java 25 (LTS)** exclusively
+* No backward compatibility constraints
+* Use modern Java features deliberately:
+
+  * records (for immutable data)
+  * sealed interfaces/classes (for closed hierarchies)
+  * pattern matching (clarity over instanceof chains)
+  * virtual threads (Project Loom) where appropriate
+
+❌ Legacy Java APIs and patterns are forbidden
+❌ Compatibility hacks are forbidden
 
 ---
 
 ### 2. Architecture Rules
-- `core` MUST NOT depend on any runtime implementation
-- Runtime adapters depend on `core`, never the opposite
-- No circular dependencies between modules
-- Package boundaries are strict and enforced
-- Cross-package access requires explicit abstraction
+
+* `core` MUST depend only on the JDK
+* Runtime adapters depend on `core`, **never the reverse**
+* No circular dependencies between modules
+* Package boundaries are strict and enforced
+* Cross-package access requires explicit abstractions
+* No "friend" packages or implicit coupling
+
+Architectural drift is treated as a **defect**, not a preference.
 
 ---
 
 ### 3. Design Principles
-- Single Responsibility Principle (SRP) is mandatory
-- Constructor injection only
-- No static global state
-- No hidden lifecycle or implicit behavior
-- Every abstraction must justify its existence
+
+* Single Responsibility Principle (SRP) is mandatory
+* Constructor injection only
+* No static global state
+* No hidden lifecycle, reflection-based wiring, or implicit execution
+* Every abstraction must:
+
+  1. Solve a real problem
+  2. Be minimal
+  3. Be defensible in an RFC
 
 ---
 
-### 4. Framework Style
-- This is a **framework**, not an application
-- Avoid annotations unless explicitly designed and justified
-- Avoid reflection unless required by an RFC
-- Prefer interfaces with small, focused contracts
-- Favor composition over inheritance
+### 4. Framework-Specific Style
+
+* This is a **framework**, not an application
+* Avoid annotations unless explicitly designed and RFC-approved
+* Avoid reflection unless RFC-approved
+* Prefer interfaces with **small, focused contracts**
+* Favor composition over inheritance
+* Avoid opinionated behavior that limits user control
+
+Axiom enables users — it does not manage them.
 
 ---
 
-## Code Style Rules
+## Code Quality & Style Rules
 
-- One public class per file
-- Class size target: ≤ 300 lines
-- Method size target: ≤ 40 lines
-- Naming must explain intent without comments
-- Comments are allowed only for:
-  - design intent
-  - constraints
-  - non-obvious tradeoffs
+* One public class per file
+* Target class size: **≤ 300 lines**
+* Target method size: **≤ 40 lines**
+* Naming must express intent clearly without comments
+* Comments are allowed **only** for:
 
-Do not comment obvious code.
+  * design intent
+  * constraints
+  * non-obvious trade-offs
+
+❌ Do not comment obvious code
+❌ Do not leave dead or speculative code
 
 ---
 
-## Package Conventions
+## Package Conventions (Strict)
 
-- `core`
+* `core`
   → fundamental framework primitives and contracts
 
-- `http`
-  → HTTP request / response abstractions only
+* `http`
+  → HTTP abstractions only (no server logic)
 
-- `routing`
+* `routing`
   → routing engine, path matching, handler contracts
 
-- `lifecycle`
-  → startup, shutdown, hooks, lifecycle coordination
+* `lifecycle`
+  → startup, shutdown, lifecycle coordination
 
-- `runtime.*`
+* `runtime.*`
   → concrete runtime/server implementations (JDK, Netty, etc.)
 
 Never mix responsibilities across packages.
@@ -110,46 +136,67 @@ Never mix responsibilities across packages.
 
 ## Error Handling Rules
 
-- Never swallow exceptions
-- Prefer domain-specific exception types
-- Fail fast during bootstrap and configuration
-- Runtime exceptions must include actionable context
-- No generic `RuntimeException` without meaning
+* Never swallow exceptions
+* Prefer domain-specific exception types
+* Fail fast during bootstrap and configuration
+* Runtime exceptions must include **actionable context**
+* No generic `RuntimeException` without meaning
+
+Errors must be explicit, predictable, and debuggable.
 
 ---
 
 ## API Design Guidelines
 
-- Public APIs are **stable by default**
-- Minimize surface area
-- Do not leak implementation details
-- Prefer immutability
-- Use builders only when object construction is complex
-- Breaking changes require RFC discussion
+* Public APIs are **stable by default**
+* Minimize surface area aggressively
+* Do not leak implementation details
+* Prefer immutability
+* Use builders only when construction is genuinely complex
+* Breaking changes require:
+
+  * RFC discussion
+  * explicit justification
+  * migration guidance
+
+Framework APIs are contracts, not conveniences.
+
+---
+
+## Performance & Concurrency Expectations
+
+* No unnecessary blocking
+* Virtual threads are the default concurrency model
+* Hot paths must avoid:
+
+  * reflection
+  * allocation-heavy logic
+  * regex at runtime
+* Algorithmic complexity must be justified
+
+Performance regressions are treated as bugs.
 
 ---
 
 ## What Copilot MUST Avoid
 
-- Spring-style magic or auto-wiring behavior
-- Annotation-driven hidden logic
-- Overengineering and speculative abstractions
-- God classes or central managers
-- Deep inheritance trees
-- Framework-controlled business logic
-
-Axiom empowers users — it does not control them.
+* Spring-style magic or auto-wiring
+* Annotation-driven hidden logic
+* Overengineering or speculative abstractions
+* God classes or central managers
+* Deep inheritance trees
+* Framework-controlled business logic
 
 ---
 
-## How to Think Before Writing Code
+## How to Think Before Writing Code (Mandatory)
 
 Before generating any code, Copilot MUST answer:
 
 1. Is this **core** or **runtime**?
 2. Is this an **abstraction** or a **concrete implementation**?
-3. Is the responsibility minimal and clear?
-4. Is the behavior explicit to the framework user?
+3. Is the responsibility minimal and explicit?
+4. Is the behavior visible and predictable to the user?
 5. Does this align with an existing RFC?
 
 If uncertain → choose the **simpler, more explicit design**.
@@ -158,7 +205,11 @@ If uncertain → choose the **simpler, more explicit design**.
 
 ## Default Bias
 
-- Explicit > implicit
-- Simple > clever
-- Small > large
-- Clear > flexible
+* Explicit > implicit
+* Simple > clever
+* Small > large
+* Clear > flexible
+* DX > internal convenience
+* Stability > rapid change
+
+When in doubt, favor the option that best serves long-term maintainability and clarity.
