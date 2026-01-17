@@ -17,6 +17,8 @@
         <module>axiom-server</module>
         <module>axiom-persistence</module>
         <module>axiom-persistence-processor</module>
+        <module>axiom-config</module>
+        <module>axiom-validation</module>
     </modules>
 
     <properties>
