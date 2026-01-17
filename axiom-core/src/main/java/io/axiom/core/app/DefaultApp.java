@@ -4,6 +4,8 @@ import java.util.*;
 import java.util.concurrent.atomic.*;
 import java.util.function.*;
 
+import org.slf4j.*;
+
 import io.axiom.core.context.*;
 import io.axiom.core.error.*;
 import io.axiom.core.handler.*;
@@ -51,6 +53,8 @@ import io.axiom.core.server.*;
  * @since 0.1.0
  */
 public class DefaultApp implements App {
+
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultApp.class);
 
     private final List<Middleware> middlewares;
     private final Router router;
@@ -238,13 +242,16 @@ public class DefaultApp implements App {
         }
 
         this.serverConfig = config;
+        DefaultApp.LOG.info("Starting Axiom application...");
 
         try {
             this.executeStartHooks();
             this.startServer(config);
             this.phase.set(LifecyclePhase.STARTED);
+            DefaultApp.LOG.info("Axiom application started on {}:{}", config.host(), this.activeServer.port());
             this.executeReadyHooks();
         } catch (final Exception e) {
+            DefaultApp.LOG.error("Failed to start application: {}", e.getMessage(), e);
             this.transitionToError(e);
             throw new StartupException("Failed to start application", e);
         }
@@ -267,6 +274,7 @@ public class DefaultApp implements App {
             return;
         }
 
+        DefaultApp.LOG.info("Stopping Axiom application...");
         final List<Throwable> failures = new ArrayList<>();
 
         try {
@@ -282,9 +290,11 @@ public class DefaultApp implements App {
 
         this.phase.set(LifecyclePhase.STOPPED);
 
-        if (!failures.isEmpty()) {
-            System.err.println("Shutdown completed with " + failures.size() + " error(s)");
-            failures.forEach(f -> f.printStackTrace(System.err));
+        if (failures.isEmpty()) {
+            DefaultApp.LOG.info("Axiom application stopped");
+        } else {
+            DefaultApp.LOG.warn("Shutdown completed with {} error(s)", failures.size());
+            failures.forEach(f -> DefaultApp.LOG.warn("Shutdown hook failed", f));
         }
     }
 
@@ -361,7 +371,7 @@ public class DefaultApp implements App {
             try {
                 hook.run();
             } catch (final Exception e) {
-                System.err.println("Ready hook failed: " + e.getMessage());
+                DefaultApp.LOG.warn("Ready hook failed: {}", e.getMessage(), e);
             }
         }
     }
@@ -381,7 +391,7 @@ public class DefaultApp implements App {
             try {
                 hook.accept(error);
             } catch (final Exception e) {
-                System.err.println("Error hook failed: " + e.getMessage());
+                DefaultApp.LOG.warn("Error hook failed: {}", e.getMessage(), e);
             }
         }
     }
@@ -452,8 +462,8 @@ public class DefaultApp implements App {
         try {
             this.errorHandler.handle(ctx, e);
         } catch (final Exception errorHandlerException) {
-            System.err.println("Error handler failed: " + errorHandlerException.getMessage());
-            errorHandlerException.printStackTrace();
+            DefaultApp.LOG.error("Error handler failed while processing {}: {}",
+                    e.getClass().getSimpleName(), errorHandlerException.getMessage(), errorHandlerException);
             try {
                 ctx.status(500);
                 ctx.text("Internal Server Error");
@@ -493,7 +503,7 @@ public class DefaultApp implements App {
                     "error", "Bad Request",
                     "message", e.getMessage()));
         } else if (e instanceof ResponseCommittedException) {
-            System.err.println("Response already committed: " + e.getMessage());
+            DefaultApp.LOG.warn("Response already committed: {}", e.getMessage());
         } else {
             ctx.status(500);
             ctx.json(Map.of(

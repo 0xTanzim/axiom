@@ -1,344 +1,218 @@
 # Axiom Framework — Roadmap
 
-**Date:** January 2026
-**Current Progress:** ~90% of core RFC scope
-**Tests:** 204 passing (135 core + 9 server + 44 persistence + 16 processor)
+**Last Updated:** January 17, 2026
+**Current Phase:** Phase 1 Complete (95%)
+**Next Priority:** RFC-0010 Testing Utilities
 
 ---
 
-## Current State Summary
+## Vision
 
-### ✅ Completed (Phase 1-3 + Persistence)
+Axiom is a **DX-first, explicit Java web framework** for Java 25+.
 
-| RFC | Feature | Status | Tests |
-|-----|---------|--------|-------|
-| RFC-0001 | Handler, Context, DefaultContext | ✅ Complete | 135 |
-| RFC-0002 | Router, App, Axiom factory | ✅ Complete | ↑ |
-| RFC-0003 | Trie-based routing | ✅ Complete | ↑ |
-| RFC-0004 | Middleware pipeline (dual style) | ✅ Complete | ↑ |
-| RFC-0005 | DX philosophy applied | ✅ Complete | - |
-| RFC-0006 | Build tool agnostic | ✅ Complete | - |
-| RFC-0007 | Lifecycle management | ✅ Complete | ↑ |
-| RFC-0008 | Structured error flow | ✅ Complete | ↑ |
-| RFC-0009 | Server SPI + JDK adapter | ✅ Complete | 9 |
-| RFC-0011 | Persistence & transactions | ✅ **COMPLETE** | 60 |
+Unlike Spring Boot or Quarkus, Axiom:
+- Has **zero magic** — no classpath scanning, no reflection-based injection
+- Is **explicit by design** — configuration is code, not hidden annotations
+- Is **minimal by default** — add only what you need
+- Embraces **virtual threads** natively (Project Loom)
 
-### ❌ Not Yet Implemented
-
-| RFC | Feature | Priority | Status |
-|-----|---------|----------|--------|
-| RFC-0012 | Logging (SLF4J) | **P0 CRITICAL** | RFC exists, needs implementation |
-| RFC-0013 | Configuration system | P1 | **RFC NEEDED** |
-| RFC-0010 | Testing utilities | P1 | RFC exists, needs implementation |
-| RFC-0014 | Validation (JSR-380) | P2 | Future |
+Our goal: The simplest, most predictable Java web framework that scales.
 
 ---
 
-## Phase 4: Logging Integration (RFC-0012) — NEXT
+## Phase 1: Foundation (95% Complete) ✅
 
-**Priority:** P0 CRITICAL (Production Requirement)
-**Estimated effort:** 2-3 days
-**RFC Status:** ✅ RFC exists at `draft/RFC_0012.md`
+| Component | Status | Tests |
+|-----------|--------|-------|
+| Core (Handler, Context, Router) | ✅ | 135 |
+| Trie-based routing with params | ✅ | included |
+| Middleware pipeline | ✅ | included |
+| App composition | ✅ | included |
+| Lifecycle hooks | ✅ | included |
+| Error handling | ✅ | included |
+| JDK HttpServer adapter | ✅ | 9 |
+| Virtual thread support | ✅ | included |
+| SLF4J logging + MDC | ✅ | included |
+| Persistence (JDBC/JPA/jOOQ) | ✅ | 44 |
+| @Transactional code gen | ✅ | 16 |
+| Configuration (.env, profiles) | ✅ | 43 |
+| Validation (Jakarta) | ✅ | 48 |
+| **Testing Utilities** | ❌ | 0 |
 
-### Why This First?
+**Remaining for Phase 1:** RFC-0010 Testing Utilities only.
 
-Current state: `System.err.println()` in `DefaultApp.java` — **NOT production-ready**.
+---
 
-Found 5 occurrences:
-- Line 286: Exception handling
-- Line 364: Ready hook failure
-- Line 384: Stop hook failure
-- Line 455: Shutdown handler failure
-- Line 496: Request handler error
+## Phase 1 Completion: RFC-0010 Testing Utilities
 
-### What to Add
+### Goal
+Enable users to test Axiom applications without starting a real server.
+
+### Planned Features
 
 ```java
-// Replace this (current)
-System.err.println("Ready hook failed: " + e.getMessage());
+// In-memory testing without HTTP
+AxiomTest test = AxiomTest.wrap(app);
 
-// With this (SLF4J)
-private static final Logger LOG = LoggerFactory.getLogger(DefaultApp.class);
-LOG.warn("Ready hook failed: {}", e.getMessage(), e);
-```
-
-### Features
-
-1. SLF4J 2.x as logging facade
-2. User provides implementation (Logback recommended)
-3. MDC for request correlation
-4. Appropriate log levels throughout framework
-
----
-
-## Phase 5: Configuration System (RFC-0013) — RFC NEEDED
-
-**Priority:** P1
-**Estimated effort:** 1 week
-**RFC Status:** ❌ RFC document doesn't exist yet
-
-### What to Add
-
-```properties
-# application.properties
-server.port=8080
-server.host=0.0.0.0
-
-axiom.datasource.url=jdbc:postgresql://localhost/mydb
-axiom.datasource.username=user
-axiom.datasource.password=pass
-axiom.datasource.pool.size=10
-```
-
-- Properties file support
-- Environment variable override
-- Type-safe config objects
-- Programmatic override still available
-
----
-
-## Phase 6: Testing Utilities (RFC-0010)
-
-**Priority:** P1
-**Estimated effort:** 1 week
-**RFC Status:** ✅ RFC exists at `draft/RFC_0010.md`
-
-### What to Add
-
-#### 1. MockContext
-
-```java
-// For unit testing handlers in isolation
-MockContext ctx = MockContext.builder()
-    .method("GET")
-    .path("/users/123")
-    .param("id", "123")
-    .query("page", "1")
+TestResponse response = test.get("/users/123")
     .header("Authorization", "Bearer token")
-    .body("{\"name\":\"John\"}")
-    .build();
+    .execute();
 
-handler.handle(ctx);
-
-assertThat(ctx.responseStatus()).isEqualTo(200);
-assertThat(ctx.responseBody()).contains("John");
-```
-
-#### 2. AppTester
-
-```java
-// For integration testing through the full stack
-AppTester tester = AppTester.create(app);
-
-tester.get("/users/123")
-    .assertStatus(200)
-    .assertJson(json -> json.path("id").isEqualTo("123"));
-
-tester.post("/users")
-    .body(new User("John"))
-    .assertStatus(201)
-    .assertHeader("Location", "/users/1");
-```
-
-#### 3. TestClient
-
-```java
-// For HTTP-level testing with real server
-TestClient client = TestClient.create(app);
-client.start();  // Starts on random port
-
-Response response = client.get("/health");
 assertThat(response.status()).isEqualTo(200);
-
-client.stop();
+assertThat(response.bodyAs(User.class).name()).isEqualTo("Alice");
 ```
 
-### Files to Create
+### Implementation Plan
 
-| File | Location |
-|------|----------|
-| `MockContext.java` | `io.axiom.core.test` |
-| `AppTester.java` | `io.axiom.core.test` |
-| `TestClient.java` | `io.axiom.core.test` |
-| `Assertions.java` | `io.axiom.core.test` |
+1. `AxiomTest` — wraps App for in-memory execution
+2. `TestRequest` — builder for test requests
+3. `TestResponse` — response with status, headers, body access
+4. `MockContext` — injectable test context
+5. Integration with JUnit 5 extension (optional)
+
+### Estimated Effort
+- **Tests:** ~40-50 new tests
+- **Time:** 1-2 days
+- **Priority:** HIGH
 
 ---
 
-## Phase 7: Persistence Layer (RFC-0011) — ✅ COMPLETE
+## Phase 2: Production Readiness (Planned)
 
-**Priority:** P1
-**Status:** ✅ **COMPLETE** (60 tests passing)
-**RFC:** `draft/RFC_0011.md`
+| Feature | RFC | Priority |
+|---------|-----|----------|
+| Metrics (Micrometer) | TBD | High |
+| Health checks | TBD | High |
+| Graceful shutdown | Partial | Medium |
+| Request timeout | TBD | Medium |
+| Rate limiting | TBD | Medium |
+| Compression (gzip) | TBD | Low |
 
-RFC-0011 defines a comprehensive persistence and transaction system.
+### Rationale
+Before production deployment, users need observability and operational controls.
 
-### ✅ Implemented Features
+---
 
-1. **Zero-Config Startup**
+## Phase 3: Ecosystem (Future)
+
+| Feature | RFC | Priority |
+|---------|-----|----------|
+| WebSocket support | TBD | Medium |
+| Server-Sent Events | TBD | Medium |
+| OpenAPI generation | TBD | Low |
+| Alternative runtime (Netty) | TBD | Low |
+
+---
+
+## Known DX Issues
+
+### 1. Error Messages Could Be Better
+**Issue:** Some exceptions lack context for debugging.
+**Example:** `NullPointerException` when route not found vs helpful "No route matched for GET /foo".
+**Fix:** Audit all exception types, add context.
+
+### 2. No @Transactional without Processor
+**Issue:** If user forgets to add `axiom-persistence-processor`, `@Transactional` silently does nothing.
+**Fix:** Add compile-time warning or runtime check.
+
+### 3. Configuration Errors Not Clear
+**Issue:** Missing required config throws generic exception.
+**Fix:** Custom `ConfigurationException` with property name and expected type.
+
+### 4. No IDE Support for Route Discovery
+**Issue:** Users can't Ctrl+Click from route string to handler.
+**Fix:** Future IDE plugin or OpenAPI integration.
+
+---
+
+## Technical Debt
+
+| Item | Impact | Priority |
+|------|--------|----------|
+| Centralize exception messages | Medium | Medium |
+| Reduce allocation in hot path | Low | Low |
+| Add benchmark suite | Medium | Medium |
+| Document all public APIs (Javadoc) | High | High |
+
+---
+
+## Module Architecture Explanation
+
+### Why `axiom-persistence` and `axiom-persistence-processor`?
+
+**Short answer:** Java annotation processors MUST be in separate modules.
+
+**Detailed explanation:**
+
+```
+axiom-persistence          (RUNTIME module)
+├── @Transactional         annotation definition
+├── Transaction            runtime transaction management
+├── DataSourceFactory      connection pool management
+├── Jdbc, Jpa, Jooq       database access utilities
+└── Used at: RUNTIME
+
+axiom-persistence-processor (COMPILE-TIME module)
+├── TransactionalProcessor annotation processor
+├── Uses JavaPoet          to generate Java source code
+├── Generates: *$Tx.java   wrapper classes
+└── Used at: COMPILE TIME ONLY
+```
+
+**Why separate?**
+
+1. **Java spec requirement** — Annotation processors run during compilation, before runtime classes exist
+2. **Classpath isolation** — Processor dependencies (JavaPoet) shouldn't be in user's runtime
+3. **Build tool integration** — Maven/Gradle need processors in `annotationProcessorPaths`
+4. **Zero runtime overhead** — Generated code is plain Java, no reflection
+
+**Example flow:**
+
 ```java
-AxiomPersistence.start();  // That's it - auto-discovers config
+// User writes:
+public class UserService {
+    @Transactional
+    public void save(User u) { ... }
+}
+
+// At compile time, processor generates:
+public class UserService$Tx extends UserService {
+    private final DataSource ds;
+
+    @Override
+    public void save(User u) {
+        Transaction.execute(ds, () -> super.save(u));
+    }
+}
+
+// User uses generated class (explicit, debuggable):
+UserService$Tx service = new UserService$Tx(dataSource);
+service.save(user);  // Transaction handled by generated code
 ```
 
-2. **Transaction Management**
-```java
-Transaction.execute(() -> {
-    entityManager.persist(order);
-    dsl.update(INVENTORY)...
-    jdbc.execute("INSERT INTO audit_log...");
-});
-```
-
-3. **Compile-time AOP** - @Transactional without runtime proxies
-4. **Scoped Values** - Java 25 feature for transaction binding
-5. **HikariCP** - Industry standard connection pooling
-6. **Flyway** - Automatic migrations
-7. **JPA + jOOQ + JDBC** - Mix freely in same transaction
-
-### Architecture
-
-```
-axiom-persistence/           (44 tests)
-├── core/          # Transaction abstraction, DataSource
-├── jpa/           # JPA/Hibernate integration
-├── jooq/          # jOOQ integration
-├── jdbc/          # Plain JDBC support
-└── flyway/        # Migration support
-
-axiom-persistence-processor/ (16 tests)
-└── @Transactional annotation processor
-```
+**DX benefit:** Users see the generated code. No magic. Easy debugging.
 
 ---
 
-## Phase 8: Future RFCs
+## Success Criteria for 1.0
 
-### Validation (RFC-0014)
-- Bean Validation (JSR-380) integration
-- Hibernate Validator
-- `ctx.validBody(CreateUserRequest.class)`
-
-### Observability (RFC-0015)
-- Micrometer metrics integration
-- OpenTelemetry tracing
-- Health check endpoints
-
-### Additional Runtime Adapters
-- Netty-based runtime for high throughput
-- Undertow adapter
-
-### Security
-- Authentication middleware
-- Authorization framework
-- CORS configuration
-- Rate limiting
-
----
-
-## Milestone Timeline
-
-| Phase | Target | Status |
-|-------|--------|--------|
-| Phase 1: Core Engine | January 2026 | ✅ Complete |
-| Phase 2: Routing + Middleware | January 2026 | ✅ Complete |
-| Phase 3: Lifecycle + Config | January 2026 | ✅ Complete |
-| Phase 4: Logging (SLF4J) | January 2026 | 📋 **NEXT** |
-| Phase 5: Configuration System | January 2026 | 📝 RFC Needed |
-| Phase 6: Testing Utilities | February 2026 | 📋 Planned |
-| Phase 7: Persistence Layer | January 2026 | ✅ **COMPLETE** |
-| MVP Release (0.1.0) | Q2 2026 | 🎯 Target |
-
----
-
-## RFC Index
-
-| RFC | Title | Status |
-|-----|-------|--------|
-| RFC-0001 | Core Design & Handler API | ✅ Implemented |
-| RFC-0002 | Routing & App Composition | ✅ Implemented |
-| RFC-0003 | Routing Matcher Algorithm | ✅ Implemented |
-| RFC-0004 | Middleware Pipeline | ✅ Implemented |
-| RFC-0005 | DX Philosophy | ✅ Applied |
-| RFC-0006 | Build Tool Strategy | ✅ Implemented |
-| RFC-0007 | Lifecycle Management | ✅ Implemented |
-| RFC-0008 | Error Handling Architecture | ✅ Implemented |
-| RFC-0009 | Runtime Adapter Contract | ✅ Implemented |
-| RFC-0010 | Testing Utilities | 📋 Planned |
-| RFC-0011 | Persistence & Transaction | ✅ **COMPLETE** |
-| RFC-0012 | Logging (SLF4J) | 📋 **NEXT** |
-| RFC-0013 | Configuration System | 📝 **RFC NEEDED** |
-| RFC-0014 | Validation (JSR-380) | 📋 Future |
-| RFC-0015 | Observability | 📋 Future |
-
----
-
-## Key Design Principles
-
-### Don't Reinvent — Integrate
-
-| Need | Use |
-|------|-----|
-| Logging | SLF4J + Logback |
-| Connection Pool | HikariCP |
-| ORM | Hibernate/JPA |
-| JSON | Jackson ✅ |
-| Validation | Hibernate Validator |
-| Migrations | Flyway |
-| HTTP Client | Java HttpClient |
-
-### Infrastructure Magic, Not Application Magic
-
-- **Automatic (framework handles):** Logging, transactions, lifecycle, connections
-- **Explicit (developer controls):** HTTP routing, handlers, business logic
-
-### Java 25 Features
-
-- Virtual Threads ✅ (JdkServer)
-- Records ✅ (ServerConfig, DTOs)
-- Scoped Values (for transactions — planned)
-- Pattern Matching (where applicable)
+- [ ] All 14 RFCs implemented
+- [ ] >300 tests passing
+- [ ] Full Javadoc coverage
+- [ ] Getting Started guide
+- [ ] Benchmark suite
+- [ ] No critical DX issues
 
 ---
 
 ## Contributing
 
-1. Check RFC in `/draft` before implementing
-2. Follow code style in `.github/copilot-instructions.md`
-3. Add tests for new functionality
-4. Update documentation
+1. Pick an item from this roadmap
+2. Check the corresponding RFC in `/draft`
+3. Implement with tests
+4. Submit PR
 
----
-
-## Lombok Compatibility
-
-Axiom is **naturally compatible** with Lombok. No framework changes needed.
-
-### Why It Works
-
-- Lombok is a compile-time annotation processor
-- It generates bytecode at compile time (getters, setters, builders)
-- Axiom sees regular Java classes at runtime
-- No runtime reflection conflicts
-
-### Recommendation
-
-| Use Case | Recommendation |
-|----------|----------------|
-| Simple DTOs | Java Records (Java 25 native) |
-| Complex entities | Lombok `@Data`, `@Builder` |
-| JPA entities | Lombok `@Getter`, `@Setter` (avoid `@Data` with JPA) |
-
-### Example
-
-```java
-// Works perfectly with Axiom
-@Data
-@Builder
-public class User {
-    private Long id;
-    private String name;
-    private String email;
-}
-
-// Handler using Lombok-generated class
-ctx.json(User.builder().id(1L).name("John").build());
-```
+All contributions must follow:
+- `copilot-instructions.md` (code law)
+- `docs.instructions.md` (doc law)
+- `global.instructions.md` (universal law)

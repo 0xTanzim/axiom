@@ -7,6 +7,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
+import org.slf4j.*;
+
 import com.sun.net.httpserver.*;
 
 import io.axiom.core.context.*;
@@ -39,6 +41,7 @@ import io.axiom.core.server.*;
  */
 final class JdkServer implements Server {
 
+    private static final Logger LOG = LoggerFactory.getLogger(JdkServer.class);
     private static final int DEFAULT_BACKLOG = 0;
 
     private final AtomicBoolean started = new AtomicBoolean(false);
@@ -83,6 +86,9 @@ final class JdkServer implements Server {
 
             this.httpServer.createContext("/", this::handleExchange);
             this.httpServer.start();
+
+            JdkServer.LOG.info("JdkServer listening on {}:{} (virtual threads: {})",
+                    config.host(), this.httpServer.getAddress().getPort(), config.virtualThreads());
 
         } catch (final IOException e) {
             this.started.set(false);
@@ -133,11 +139,18 @@ final class JdkServer implements Server {
     }
 
     private void handleExchange(final HttpExchange exchange) {
+        final String requestId = UUID.randomUUID().toString().substring(0, 8);
+        MDC.put("requestId", requestId);
+
         try {
             final var request = new JdkRequest(exchange, this.config.maxRequestSize());
             final var response = new JdkResponse(exchange);
             final var jsonCodec = new JacksonCodec();
             final var context = new DefaultContext(request, response, jsonCodec);
+
+            if (JdkServer.LOG.isDebugEnabled()) {
+                JdkServer.LOG.debug("{} {}", request.method(), request.path());
+            }
 
             this.handler.handle(context);
 
@@ -146,8 +159,10 @@ final class JdkServer implements Server {
                 response.send(new byte[0]);
             }
         } catch (final Exception e) {
+            JdkServer.LOG.error("Unhandled exception processing request: {}", e.getMessage(), e);
             this.sendErrorResponse(exchange, e);
         } finally {
+            MDC.clear();
             exchange.close();
         }
     }

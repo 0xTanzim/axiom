@@ -29,6 +29,9 @@
  * @since 0.1.0
  */
 module io.axiom.core {
+    // Logging facade
+    requires org.slf4j;
+
     // Jackson dependency for JSON processing
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;

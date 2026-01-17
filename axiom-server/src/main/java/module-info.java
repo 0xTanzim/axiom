@@ -2,6 +2,7 @@ module io.axiom.server {
     requires io.axiom.core;
     requires jdk.httpserver;
     requires java.net.http;
+    requires org.slf4j;
 
     exports io.axiom.server;
 

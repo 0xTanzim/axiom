@@ -1,11 +1,12 @@
 package io.axiom.core.routing;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.*;
+import java.util.function.*;
 
-import io.axiom.core.handler.Handler;
-import io.axiom.core.routing.internal.RouteTrie;
+import org.slf4j.*;
+
+import io.axiom.core.handler.*;
+import io.axiom.core.routing.internal.*;
 
 /**
  * Route registration and matching API.
@@ -16,7 +17,7 @@ import io.axiom.core.routing.internal.RouteTrie;
  * to HTTP methods and path patterns.
  *
  * <h2>Basic Usage</h2>
- * 
+ *
  * <pre>{@code
  * Router router = new Router();
  *
@@ -35,7 +36,7 @@ import io.axiom.core.routing.internal.RouteTrie;
  * }</pre>
  *
  * <h2>Route Grouping</h2>
- * 
+ *
  * <pre>{@code
  * router.group("/api/v1", api -> {
  *     api.get("/users", c -> c.json(userService.list()));
@@ -60,6 +61,8 @@ import io.axiom.core.routing.internal.RouteTrie;
  */
 public final class Router {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Router.class);
+
     private final RouteTrie trie;
     private final String basePath;
 
@@ -70,7 +73,7 @@ public final class Router {
         this(new RouteTrie(), "");
     }
 
-    private Router(RouteTrie trie, String basePath) {
+    private Router(final RouteTrie trie, final String basePath) {
         this.trie = trie;
         this.basePath = basePath;
     }
@@ -84,8 +87,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router get(String path, Handler handler) {
-        return route("GET", path, handler);
+    public Router get(final String path, final Handler handler) {
+        return this.route("GET", path, handler);
     }
 
     /**
@@ -95,8 +98,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router post(String path, Handler handler) {
-        return route("POST", path, handler);
+    public Router post(final String path, final Handler handler) {
+        return this.route("POST", path, handler);
     }
 
     /**
@@ -106,8 +109,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router put(String path, Handler handler) {
-        return route("PUT", path, handler);
+    public Router put(final String path, final Handler handler) {
+        return this.route("PUT", path, handler);
     }
 
     /**
@@ -117,8 +120,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router delete(String path, Handler handler) {
-        return route("DELETE", path, handler);
+    public Router delete(final String path, final Handler handler) {
+        return this.route("DELETE", path, handler);
     }
 
     /**
@@ -128,8 +131,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router patch(String path, Handler handler) {
-        return route("PATCH", path, handler);
+    public Router patch(final String path, final Handler handler) {
+        return this.route("PATCH", path, handler);
     }
 
     /**
@@ -139,8 +142,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router head(String path, Handler handler) {
-        return route("HEAD", path, handler);
+    public Router head(final String path, final Handler handler) {
+        return this.route("HEAD", path, handler);
     }
 
     /**
@@ -150,8 +153,8 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router options(String path, Handler handler) {
-        return route("OPTIONS", path, handler);
+    public Router options(final String path, final Handler handler) {
+        return this.route("OPTIONS", path, handler);
     }
 
     // ========== Generic Route Registration ==========
@@ -164,14 +167,14 @@ public final class Router {
      * @param handler the request handler
      * @return this router for chaining
      */
-    public Router route(String method, String path, Handler handler) {
+    public Router route(final String method, final String path, final Handler handler) {
         Objects.requireNonNull(method, "Method cannot be null");
         Objects.requireNonNull(path, "Path cannot be null");
         Objects.requireNonNull(handler, "Handler cannot be null");
 
-        String fullPath = PathParser.join(basePath, path);
-        Route route = Route.of(method, fullPath, handler);
-        trie.insert(route);
+        final String fullPath = PathParser.join(this.basePath, path);
+        final Route route = Route.of(method, fullPath, handler);
+        this.trie.insert(route);
 
         return this;
     }
@@ -185,12 +188,12 @@ public final class Router {
     public Router route(Route route) {
         Objects.requireNonNull(route, "Route cannot be null");
 
-        if (!basePath.isEmpty()) {
-            String fullPath = PathParser.join(basePath, route.path());
+        if (!this.basePath.isEmpty()) {
+            final String fullPath = PathParser.join(this.basePath, route.path());
             route = Route.of(route.method(), fullPath, route.handler());
         }
 
-        trie.insert(route);
+        this.trie.insert(route);
         return this;
     }
 
@@ -214,12 +217,12 @@ public final class Router {
      * @param configure function to configure routes in the group
      * @return this router for chaining
      */
-    public Router group(String prefix, Consumer<Router> configure) {
+    public Router group(final String prefix, final Consumer<Router> configure) {
         Objects.requireNonNull(prefix, "Prefix cannot be null");
         Objects.requireNonNull(configure, "Configure function cannot be null");
 
-        String groupBasePath = PathParser.join(basePath, prefix);
-        Router groupRouter = new Router(trie, groupBasePath);
+        final String groupBasePath = PathParser.join(this.basePath, prefix);
+        final Router groupRouter = new Router(this.trie, groupBasePath);
         configure.accept(groupRouter);
 
         return this;
@@ -234,8 +237,16 @@ public final class Router {
      * @param path   the request path
      * @return RouteMatch if found, null otherwise
      */
-    public RouteMatch match(String method, String path) {
-        return trie.match(method, path);
+    public RouteMatch match(final String method, final String path) {
+        final RouteMatch result = this.trie.match(method, path);
+        if (Router.LOG.isDebugEnabled()) {
+            if (result != null) {
+                Router.LOG.debug("Route matched: {} {} -> {}", method, path, result.route().path());
+            } else {
+                Router.LOG.debug("No route matched: {} {}", method, path);
+            }
+        }
+        return result;
     }
 
     /**
@@ -247,7 +258,7 @@ public final class Router {
      * @return list of all routes
      */
     public List<Route> routes() {
-        return trie.routes();
+        return this.trie.routes();
     }
 
     /**
@@ -259,8 +270,8 @@ public final class Router {
      * @param path the request path
      * @return list of allowed HTTP methods
      */
-    public List<String> allowedMethods(String path) {
-        return trie.allowedMethods(path);
+    public List<String> allowedMethods(final String path) {
+        return this.trie.allowedMethods(path);
     }
 
     /**
@@ -269,8 +280,8 @@ public final class Router {
      * @param path the request path
      * @return true if at least one route matches
      */
-    public boolean hasRoute(String path) {
-        return trie.hasPath(path);
+    public boolean hasRoute(final String path) {
+        return this.trie.hasPath(path);
     }
 
     /**
@@ -280,8 +291,8 @@ public final class Router {
      * @param path   the request path
      * @return true if route exists
      */
-    public boolean hasRoute(String method, String path) {
-        return match(method, path) != null;
+    public boolean hasRoute(final String method, final String path) {
+        return this.match(method, path) != null;
     }
 
     /**
@@ -290,11 +301,11 @@ public final class Router {
      * @param other the router to merge
      * @return this router for chaining
      */
-    public Router merge(Router other) {
+    public Router merge(final Router other) {
         Objects.requireNonNull(other, "Other router cannot be null");
 
-        for (Route route : other.routes()) {
-            route(route);
+        for (final Route route : other.routes()) {
+            this.route(route);
         }
 
         return this;
@@ -307,13 +318,13 @@ public final class Router {
      * @param other  the router to merge
      * @return this router for chaining
      */
-    public Router merge(String prefix, Router other) {
+    public Router merge(final String prefix, final Router other) {
         Objects.requireNonNull(prefix, "Prefix cannot be null");
         Objects.requireNonNull(other, "Other router cannot be null");
 
-        for (Route route : other.routes()) {
-            String fullPath = PathParser.join(prefix, route.path());
-            route(route.method(), fullPath, route.handler());
+        for (final Route route : other.routes()) {
+            final String fullPath = PathParser.join(prefix, route.path());
+            this.route(route.method(), fullPath, route.handler());
         }
 
         return this;
