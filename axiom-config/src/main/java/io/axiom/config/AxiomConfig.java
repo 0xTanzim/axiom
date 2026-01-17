@@ -1,4 +1,4 @@
-package com.axiom.config;
+package io.axiom.config;
 
 import io.smallrye.config.SmallRyeConfig;
 import io.smallrye.config.SmallRyeConfigBuilder;
@@ -408,6 +408,58 @@ public final class AxiomConfig {
         } catch (Exception e) {
             throw new ConfigException.BindingFailed(mappingClass, e);
         }
+    }
+
+    /**
+     * Binds configuration to a type-safe mapping class.
+     *
+     * <p>Alias for {@link #getMapping(Class)} per RFC-0013 specification.
+     *
+     * @param <T> the mapping type
+     * @param type the mapping interface class
+     * @return the type-safe configuration
+     * @throws ConfigException.BindingFailed if mapping fails
+     */
+    public <T> T bind(Class<T> type) {
+        return getMapping(type);
+    }
+
+    /**
+     * Creates a subset view of configuration with a given prefix.
+     *
+     * <p>This creates a new AxiomConfig that only contains keys
+     * starting with the given prefix, with the prefix stripped.
+     *
+     * <pre>{@code
+     * // Original config:
+     * // database.url=jdbc:postgresql://localhost/app
+     * // database.pool.size=10
+     * // server.port=8080
+     *
+     * AxiomConfig dbConfig = config.subset("database");
+     * // Now:
+     * // url=jdbc:postgresql://localhost/app
+     * // pool.size=10
+     * }</pre>
+     *
+     * @param prefix the prefix to filter and strip (without trailing dot)
+     * @return a new config containing only matching keys with prefix stripped
+     */
+    public AxiomConfig subset(String prefix) {
+        Objects.requireNonNull(prefix, "prefix must not be null");
+        String normalizedPrefix = prefix.endsWith(".") ? prefix : prefix + ".";
+
+        SmallRyeConfigBuilder builder = new SmallRyeConfigBuilder();
+
+        for (String key : delegate.getPropertyNames()) {
+            if (key.startsWith(normalizedPrefix)) {
+                String strippedKey = key.substring(normalizedPrefix.length());
+                delegate.getOptionalValue(key, String.class)
+                        .ifPresent(value -> builder.withDefaultValue(strippedKey, value));
+            }
+        }
+
+        return new AxiomConfig(builder.build());
     }
 
     /**

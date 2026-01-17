@@ -1,4 +1,4 @@
-package com.axiom.config;
+package io.axiom.config;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -369,6 +369,88 @@ class AxiomConfigTest {
             assertThat(dbConfig.port()).isEqualTo(5432);
             assertThat(dbConfig.pool().minSize()).isEqualTo(5);
             assertThat(dbConfig.pool().maxSize()).isEqualTo(20);
+        }
+    }
+
+    @Nested
+    @DisplayName("subset(String)")
+    class SubsetTests {
+
+        @Test
+        @DisplayName("should create subset with prefix stripped")
+        void createsSubsetWithPrefixStripped() {
+            AxiomConfig config = AxiomConfig.parse("""
+                    database.url=jdbc:postgresql://localhost/app
+                    database.pool.size=10
+                    server.port=8080
+                    """);
+
+            AxiomConfig dbConfig = config.subset("database");
+
+            assertThat(dbConfig.get("url")).contains("jdbc:postgresql://localhost/app");
+            assertThat(dbConfig.get("pool.size")).contains("10");
+            assertThat(dbConfig.get("server.port")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("should handle prefix with trailing dot")
+        void handlesPrefixWithTrailingDot() {
+            AxiomConfig config = AxiomConfig.parse("""
+                    app.name=MyApp
+                    app.version=1.0
+                    """);
+
+            AxiomConfig appConfig = config.subset("app.");
+
+            assertThat(appConfig.get("name")).contains("MyApp");
+            assertThat(appConfig.get("version")).contains("1.0");
+        }
+
+        @Test
+        @DisplayName("should return empty config for non-matching prefix")
+        void returnsEmptyForNonMatchingPrefix() {
+            AxiomConfig config = AxiomConfig.parse("server.port=8080");
+
+            AxiomConfig dbConfig = config.subset("database");
+
+            assertThat(dbConfig.get("url")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("should handle nested subset")
+        void handlesNestedSubset() {
+            AxiomConfig config = AxiomConfig.parse("""
+                    database.pool.min=5
+                    database.pool.max=20
+                    database.url=jdbc:h2:mem:test
+                    """);
+
+            AxiomConfig poolConfig = config.subset("database").subset("pool");
+
+            assertThat(poolConfig.get("min")).contains("5");
+            assertThat(poolConfig.get("max")).contains("20");
+        }
+    }
+
+    @Nested
+    @DisplayName("bind(Class)")
+    class BindTests {
+
+        @Test
+        @DisplayName("should bind to mapping interface (alias for getMapping)")
+        void bindsToMappingInterface() {
+            AxiomConfig config = AxiomConfig.builder()
+                    .withoutDefaultSources()
+                    .withMapping(ServerConfig.class)
+                    .withProperty("server.host", "127.0.0.1")
+                    .withProperty("server.port", "3000")
+                    .build();
+
+            ServerConfig serverConfig = config.bind(ServerConfig.class);
+
+            assertThat(serverConfig).isNotNull();
+            assertThat(serverConfig.host()).isEqualTo("127.0.0.1");
+            assertThat(serverConfig.port()).isEqualTo(3000);
         }
     }
 }

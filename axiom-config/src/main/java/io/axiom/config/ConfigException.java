@@ -1,4 +1,4 @@
-package com.axiom.config;
+package io.axiom.config;
 
 /**
  * Configuration exceptions for Axiom config system.

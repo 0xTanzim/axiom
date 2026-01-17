@@ -1,4 +1,4 @@
-package com.axiom.config;
+package io.axiom.config;
 
 import io.smallrye.config.common.MapBackedConfigSource;
 

@@ -1,4 +1,4 @@
-package com.axiom.validation;
+package io.axiom.validation;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;

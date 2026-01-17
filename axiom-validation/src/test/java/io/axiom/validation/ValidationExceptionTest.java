@@ -1,4 +1,4 @@
-package com.axiom.validation;
+package io.axiom.validation;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

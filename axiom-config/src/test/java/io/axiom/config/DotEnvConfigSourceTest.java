@@ -1,4 +1,4 @@
-package com.axiom.config;
+package io.axiom.config;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

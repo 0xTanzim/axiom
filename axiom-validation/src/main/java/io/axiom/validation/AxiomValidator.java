@@ -1,4 +1,4 @@
-package com.axiom.validation;
+package io.axiom.validation;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;

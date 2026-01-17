@@ -1,4 +1,4 @@
-package com.axiom.validation;
+package io.axiom.validation;
 
 import java.util.HashMap;
 import java.util.List;
