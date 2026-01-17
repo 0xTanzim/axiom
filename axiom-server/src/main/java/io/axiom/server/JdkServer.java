@@ -1,201 +1,209 @@
 package io.axiom.server;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
-import io.axiom.core.context.Context;
-import io.axiom.core.context.DefaultContext;
-import io.axiom.core.handler.Handler;
-import io.axiom.core.json.JacksonCodec;
-import io.axiom.core.json.JsonCodec;
-import io.axiom.core.server.Server;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import com.sun.net.httpserver.*;
+
+import io.axiom.core.context.*;
+import io.axiom.core.handler.*;
+import io.axiom.core.json.*;
+import io.axiom.core.server.*;
 
 /**
- * JDK HttpServer implementation with virtual thread support.
+ * JDK HttpServer implementation for Axiom.
  *
  * <p>
- * This server uses Java's built-in {@code com.sun.net.httpserver.HttpServer}
- * with a virtual thread executor for handling requests.
+ * Uses Java's built-in {@code com.sun.net.httpserver.HttpServer}
+ * with virtual threads for high concurrency without external dependencies.
  *
- * <h2>Threading Model</h2>
+ * <h2>Design</h2>
+ * <ul>
+ *   <li>All errors propagate to the application handler (no internal handling)</li>
+ *   <li>Virtual threads by default for massive concurrency</li>
+ *   <li>Respects ServerConfig for all tuning parameters</li>
+ *   <li>Graceful shutdown with configurable drain timeout</li>
+ * </ul>
+ *
+ * <h2>Error Handling</h2>
  * <p>
- * Each request runs on its own virtual thread via
- * {@code Executors.newVirtualThreadPerTaskExecutor()}. Virtual threads
- * are lightweight (few KB stack), allowing millions of concurrent requests
- * without manual thread pool sizing.
- *
- * <h2>Java 25 Improvements</h2>
- * <p>
- * JEP 491 (Java 25) eliminates virtual thread pinning when entering
- * synchronized blocks, making virtual threads fully compatible with
- * legacy libraries that use synchronized.
- *
- * <h2>Lifecycle</h2>
- * <pre>
- * JdkServer server = new JdkServer();
- * server.handler(appHandler);
- * server.start("0.0.0.0", 8080);
- * // ... running ...
- * server.stop();
- * </pre>
+ * JdkServer does NOT handle errors internally. All exceptions from
+ * the handler propagate through the composed handler chain, where
+ * {@link io.axiom.core.app.DefaultApp} applies the configured error handler.
  *
  * @since 0.1.0
  */
-public final class JdkServer implements Server {
+final class JdkServer implements Server {
 
     private static final int DEFAULT_BACKLOG = 0;
-    private static final int STOP_DELAY_SECONDS = 1;
 
-    private final JsonCodec jsonCodec;
-    private final AtomicBoolean running;
-    private final AtomicInteger boundPort;
+    private final AtomicBoolean started = new AtomicBoolean(false);
+    private final AtomicBoolean stopped = new AtomicBoolean(false);
 
     private Handler handler;
     private HttpServer httpServer;
     private ExecutorService executor;
-
-    public JdkServer() {
-        this.jsonCodec = new JacksonCodec();
-        this.running = new AtomicBoolean(false);
-        this.boundPort = new AtomicInteger(-1);
-    }
+    private ServerConfig config;
 
     @Override
     public Server handler(final Handler handler) {
-        Objects.requireNonNull(handler, "Handler cannot be null");
-        if (this.running.get()) {
-            throw new IllegalStateException("Cannot set handler after server is started");
+        if (this.started.get()) {
+            throw new IllegalStateException("Cannot set handler after server has started");
         }
-        this.handler = handler;
+        this.handler = Objects.requireNonNull(handler, "Handler cannot be null");
         return this;
     }
 
     @Override
-    public void start(final String host, final int port) {
-        Objects.requireNonNull(host, "Host cannot be null");
+    public void start(final ServerConfig config) {
+        Objects.requireNonNull(config, "ServerConfig cannot be null");
 
         if (this.handler == null) {
             throw new IllegalStateException("Handler must be set before starting server");
         }
 
-        if (!this.running.compareAndSet(false, true)) {
-            throw new IllegalStateException("Server is already running");
+        if (!this.started.compareAndSet(false, true)) {
+            throw new IllegalStateException("Server already started");
         }
 
+        this.config = config;
+
         try {
-            this.executor = Executors.newVirtualThreadPerTaskExecutor();
-            this.httpServer = HttpServer.create(new InetSocketAddress(host, port), DEFAULT_BACKLOG);
+            this.executor = config.virtualThreads()
+                    ? Executors.newVirtualThreadPerTaskExecutor()
+                    : Executors.newCachedThreadPool();
+
+            final InetSocketAddress address = new InetSocketAddress(config.host(), config.port());
+            this.httpServer = HttpServer.create(address, JdkServer.DEFAULT_BACKLOG);
             this.httpServer.setExecutor(this.executor);
-            this.httpServer.createContext("/", this::handleRequest);
+
+            this.httpServer.createContext("/", this::handleExchange);
             this.httpServer.start();
-            this.boundPort.set(this.httpServer.getAddress().getPort());
+
         } catch (final IOException e) {
-            this.running.set(false);
-            throw new RuntimeException("Failed to start server on " + host + ":" + port, e);
+            this.started.set(false);
+            throw new RuntimeException("Failed to start server on " + config.host() + ":" + config.port(), e);
         }
     }
 
     @Override
     public void stop() {
-        if (this.running.compareAndSet(true, false)) {
-            if (this.httpServer != null) {
-                this.httpServer.stop(STOP_DELAY_SECONDS);
-                this.httpServer = null;
-            }
-            if (this.executor != null) {
-                this.executor.close();
-                this.executor = null;
-            }
-            this.boundPort.set(-1);
+        if (!this.stopped.compareAndSet(false, true)) {
+            return;
         }
+
+        if (this.httpServer != null) {
+            final int drainSeconds = (int) this.config.drainTimeout().toSeconds();
+            this.httpServer.stop(drainSeconds);
+            this.httpServer = null;
+        }
+
+        if (this.executor != null) {
+            this.executor.shutdown();
+            try {
+                final long timeout = this.config.shutdownTimeout().toMillis();
+                if (!this.executor.awaitTermination(timeout, TimeUnit.MILLISECONDS)) {
+                    this.executor.shutdownNow();
+                }
+            } catch (final InterruptedException e) {
+                this.executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            this.executor = null;
+        }
+
+        this.started.set(false);
     }
 
     @Override
     public int port() {
-        return this.boundPort.get();
+        if (this.httpServer == null) {
+            return -1;
+        }
+        return this.httpServer.getAddress().getPort();
     }
 
     @Override
     public boolean isRunning() {
-        return this.running.get();
+        return this.started.get() && !this.stopped.get() && this.httpServer != null;
     }
 
-    private void handleRequest(final HttpExchange exchange) {
+    private void handleExchange(final HttpExchange exchange) {
         try {
-            final Context context = createContext(exchange);
+            final var request = new JdkRequest(exchange, this.config.maxRequestSize());
+            final var response = new JdkResponse(exchange);
+            final var jsonCodec = new JacksonCodec();
+            final var context = new DefaultContext(request, response, jsonCodec);
+
             this.handler.handle(context);
+
+            if (!response.isCommitted()) {
+                response.status(204);
+                response.send(new byte[0]);
+            }
         } catch (final Exception e) {
-            handleError(exchange, e);
+            this.sendErrorResponse(exchange, e);
         } finally {
             exchange.close();
         }
     }
 
-    private Context createContext(final HttpExchange exchange) throws IOException {
-        final DefaultContext.Request request = new ExchangeRequest(exchange);
-        final DefaultContext.Response response = new ExchangeResponse(exchange);
-        return new DefaultContext(request, response, this.jsonCodec);
-    }
-
-    private void handleError(final HttpExchange exchange, final Exception e) {
+    private void sendErrorResponse(final HttpExchange exchange, final Exception error) {
         try {
-            final String message = e.getMessage() != null ? e.getMessage() : "Internal Server Error";
-            final byte[] body = message.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=UTF-8");
-            exchange.sendResponseHeaders(500, body.length);
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(body);
+            final String body = "{\"error\":\"Internal Server Error\",\"message\":\"" +
+                    JdkServer.escapeJson(error.getMessage() != null ? error.getMessage() : "Unknown error") + "\"}";
+            final byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(500, bytes.length);
+
+            try (final OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
             }
         } catch (final IOException ignored) {
-            // Response already started or connection closed
+            // Response already committed or connection closed
         }
     }
 
+    private static String escapeJson(final String value) {
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
+
     /**
-     * Adapter that bridges HttpExchange to DefaultContext.Request.
+     * JDK HttpExchange request adapter.
      */
-    private static final class ExchangeRequest implements DefaultContext.Request {
-
+    private static final class JdkRequest implements DefaultContext.Request {
         private final HttpExchange exchange;
-        private final String path;
-        private final Map<String, String> queryParams;
-        private final Map<String, String> headers;
-        private final byte[] body;
-        private Map<String, String> params;
+        private final int maxRequestSize;
 
-        ExchangeRequest(final HttpExchange exchange) throws IOException {
+        private Map<String, String> params = Collections.emptyMap();
+        private Map<String, String> queryParams;
+        private Map<String, String> headers;
+        private byte[] body;
+        private boolean bodyRead;
+
+        JdkRequest(final HttpExchange exchange, final int maxRequestSize) {
             this.exchange = exchange;
-            this.params = new HashMap<>();
-
-            final String uri = exchange.getRequestURI().toString();
-            final int queryIndex = uri.indexOf('?');
-            this.path = queryIndex >= 0 ? uri.substring(0, queryIndex) : uri;
-            this.queryParams = parseQueryParams(queryIndex >= 0 ? uri.substring(queryIndex + 1) : "");
-            this.headers = extractHeaders(exchange);
-            this.body = readBody(exchange);
+            this.maxRequestSize = maxRequestSize;
         }
 
         @Override
         public String method() {
-            return this.exchange.getRequestMethod();
+            return this.exchange.getRequestMethod().toUpperCase(Locale.ROOT);
         }
 
         @Override
         public String path() {
-            return this.path;
+            return this.exchange.getRequestURI().getPath();
         }
 
         @Override
@@ -205,68 +213,96 @@ public final class JdkServer implements Server {
 
         @Override
         public void setParams(final Map<String, String> params) {
-            this.params = params != null ? params : new HashMap<>();
+            this.params = params != null ? Collections.unmodifiableMap(new HashMap<>(params)) : Collections.emptyMap();
         }
 
         @Override
         public Map<String, String> queryParams() {
+            if (this.queryParams == null) {
+                this.queryParams = this.parseQueryParams();
+            }
             return this.queryParams;
         }
 
         @Override
         public Map<String, String> headers() {
+            if (this.headers == null) {
+                this.headers = this.parseHeaders();
+            }
             return this.headers;
         }
 
         @Override
         public byte[] body() {
+            if (!this.bodyRead) {
+                this.body = this.readBody();
+                this.bodyRead = true;
+            }
             return this.body;
         }
 
-        private static Map<String, String> parseQueryParams(final String query) {
+        private Map<String, String> parseQueryParams() {
+            final String query = this.exchange.getRequestURI().getQuery();
             if (query == null || query.isEmpty()) {
-                return Map.of();
+                return Collections.emptyMap();
             }
 
-            final Map<String, String> params = new HashMap<>();
+            final Map<String, String> result = new HashMap<>();
             for (final String pair : query.split("&")) {
-                final int eq = pair.indexOf('=');
-                if (eq > 0) {
-                    final String key = URLDecoder.decode(pair.substring(0, eq), StandardCharsets.UTF_8);
-                    final String value = URLDecoder.decode(pair.substring(eq + 1), StandardCharsets.UTF_8);
-                    params.put(key, value);
+                final int idx = pair.indexOf('=');
+                if (idx > 0) {
+                    final String key = URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8);
+                    final String value = URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8);
+                    result.put(key, value);
+                } else if (!pair.isEmpty()) {
+                    result.put(URLDecoder.decode(pair, StandardCharsets.UTF_8), "");
                 }
             }
-            return Map.copyOf(params);
+            return Collections.unmodifiableMap(result);
         }
 
-        private static Map<String, String> extractHeaders(final HttpExchange exchange) {
-            final Map<String, String> headers = new HashMap<>();
-            exchange.getRequestHeaders().forEach((name, values) -> {
-                if (values != null && !values.isEmpty()) {
-                    headers.put(name.toLowerCase(), values.getFirst());
+        private Map<String, String> parseHeaders() {
+            final Map<String, String> result = new HashMap<>();
+            for (final var entry : this.exchange.getRequestHeaders().entrySet()) {
+                if (!entry.getValue().isEmpty()) {
+                    result.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue().getFirst());
                 }
-            });
-            return Map.copyOf(headers);
+            }
+            return Collections.unmodifiableMap(result);
         }
 
-        private static byte[] readBody(final HttpExchange exchange) throws IOException {
-            try (InputStream in = exchange.getRequestBody()) {
-                return in.readAllBytes();
+        private byte[] readBody() {
+            try (final InputStream is = this.exchange.getRequestBody();
+                 final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+
+                final byte[] buffer = new byte[8192];
+                int bytesRead;
+                int totalRead = 0;
+
+                while ((bytesRead = is.read(buffer)) != -1) {
+                    totalRead += bytesRead;
+                    if (totalRead > this.maxRequestSize) {
+                        throw new RuntimeException("Request body exceeds maximum size of " + this.maxRequestSize + " bytes");
+                    }
+                    baos.write(buffer, 0, bytesRead);
+                }
+
+                return baos.toByteArray();
+            } catch (final IOException e) {
+                throw new RuntimeException("Failed to read request body", e);
             }
         }
     }
 
     /**
-     * Adapter that bridges DefaultContext.Response to HttpExchange.
+     * JDK HttpExchange response adapter.
      */
-    private static final class ExchangeResponse implements DefaultContext.Response {
-
+    private static final class JdkResponse implements DefaultContext.Response {
         private final HttpExchange exchange;
+        private final AtomicBoolean committed = new AtomicBoolean(false);
         private int statusCode = 200;
-        private boolean headersSent = false;
 
-        ExchangeResponse(final HttpExchange exchange) {
+        JdkResponse(final HttpExchange exchange) {
             this.exchange = exchange;
         }
 
@@ -282,22 +318,26 @@ public final class JdkServer implements Server {
 
         @Override
         public void send(final byte[] data) {
-            if (this.headersSent) {
+            if (!this.committed.compareAndSet(false, true)) {
                 return;
             }
-            this.headersSent = true;
 
             try {
-                final int length = data != null ? data.length : 0;
+                final long length = data != null && data.length > 0 ? data.length : -1;
                 this.exchange.sendResponseHeaders(this.statusCode, length);
-                if (length > 0) {
-                    try (OutputStream out = this.exchange.getResponseBody()) {
-                        out.write(data);
+
+                if (data != null && data.length > 0) {
+                    try (final OutputStream os = this.exchange.getResponseBody()) {
+                        os.write(data);
                     }
                 }
             } catch (final IOException e) {
                 throw new RuntimeException("Failed to send response", e);
             }
+        }
+
+        boolean isCommitted() {
+            return this.committed.get();
         }
     }
 }

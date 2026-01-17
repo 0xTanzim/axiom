@@ -1,14 +1,11 @@
 package io.axiom.core.middleware;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
 
-import io.axiom.core.handler.Handler;
-
-import static org.assertj.core.api.Assertions.*;
+import io.axiom.core.handler.*;
 
 @DisplayName("Middleware")
 class MiddlewareTest {

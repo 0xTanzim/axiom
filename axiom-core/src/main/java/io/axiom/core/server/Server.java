@@ -14,7 +14,7 @@ import io.axiom.core.handler.*;
  * <pre>
  * Server server = factory.create();
  * server.handler(composedHandler);
- * server.start("0.0.0.0", 8080);
+ * server.start(ServerConfig.defaults());
  * // ... server is running ...
  * server.stop();
  * </pre>
@@ -33,7 +33,7 @@ public interface Server {
      * Sets the handler for incoming requests.
      *
      * <p>
-     * Must be called before {@link #start(String, int)}.
+     * Must be called before {@link #start(ServerConfig)}.
      *
      * @param handler the composed handler from App
      * @return this server for chaining
@@ -42,22 +42,38 @@ public interface Server {
     Server handler(Handler handler);
 
     /**
-     * Starts the server on the specified host and port.
+     * Starts the server with the given configuration.
      *
      * <p>
      * This method blocks until the server is ready to accept connections.
+     *
+     * @param config the server configuration
+     * @throws IllegalStateException if handler not set or already started
+     */
+    void start(ServerConfig config);
+
+    /**
+     * Starts the server on the specified host and port with default settings.
+     *
+     * <p>
+     * Convenience method equivalent to:
+     * <pre>{@code
+     * start(ServerConfig.builder().host(host).port(port).build());
+     * }</pre>
      *
      * @param host the host to bind to (e.g., "0.0.0.0" or "localhost")
      * @param port the port to listen on (0 for random available port)
      * @throws IllegalStateException if handler not set or already started
      */
-    void start(String host, int port);
+    default void start(final String host, final int port) {
+        this.start(ServerConfig.builder().host(host).port(port).build());
+    }
 
     /**
      * Stops the server gracefully.
      *
      * <p>
-     * Waits for in-flight requests to complete up to a reasonable timeout.
+     * Waits for in-flight requests to complete up to the configured timeout.
      */
     void stop();
 

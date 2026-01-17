@@ -4,8 +4,10 @@ import java.util.function.*;
 
 import io.axiom.core.error.*;
 import io.axiom.core.handler.*;
+import io.axiom.core.lifecycle.*;
 import io.axiom.core.middleware.*;
 import io.axiom.core.routing.*;
+import io.axiom.core.server.*;
 
 /**
  * Main application interface for Axiom framework.
@@ -195,7 +197,84 @@ public interface App {
      */
     App onError(ErrorHandler handler);
 
-    // ========== Lifecycle ==========
+    // ========== Lifecycle Hooks ==========
+
+    /**
+     * Registers a startup hook.
+     *
+     * <p>
+     * Runs during STARTING phase, before server accepts requests.
+     * Use for: database connections, cache warming, validation.
+     *
+     * <pre>{@code
+     * app.onStart(() -> {
+     *     database.connect();
+     *     cache.warm();
+     * });
+     * }</pre>
+     *
+     * @param action the startup action
+     * @return this app for chaining
+     */
+    App onStart(ThrowingRunnable action);
+
+    /**
+     * Registers a ready hook.
+     *
+     * <p>
+     * Runs after STARTED, when server is accepting requests.
+     * Use for: logging, health check registration, metrics.
+     * Should be fast and non-blocking.
+     *
+     * <pre>{@code
+     * app.onReady(() -> {
+     *     log.info("Server ready at http://localhost:{}", app.port());
+     * });
+     * }</pre>
+     *
+     * @param action the ready action
+     * @return this app for chaining
+     */
+    App onReady(Runnable action);
+
+    /**
+     * Registers a shutdown hook.
+     *
+     * <p>
+     * Runs during STOPPING phase, in reverse registration order.
+     * Use for: cleanup, connection closing, flush buffers.
+     *
+     * <pre>{@code
+     * app.onShutdown(() -> {
+     *     database.close();
+     *     cache.flush();
+     * });
+     * }</pre>
+     *
+     * @param action the shutdown action
+     * @return this app for chaining
+     */
+    App onShutdown(ThrowingRunnable action);
+
+    /**
+     * Registers a lifecycle error hook.
+     *
+     * <p>
+     * Runs when ERROR state is entered due to lifecycle failure.
+     * Use for: alerting, cleanup attempts, logging.
+     *
+     * <pre>{@code
+     * app.onLifecycleError(e -> {
+     *     alerting.send("Server failed: " + e.getMessage());
+     * });
+     * }</pre>
+     *
+     * @param action the error handler
+     * @return this app for chaining
+     */
+    App onLifecycleError(Consumer<Throwable> action);
+
+    // ========== Lifecycle Control ==========
 
     /**
      * Starts the server on the specified port.
@@ -204,6 +283,7 @@ public interface App {
      * This method blocks until the server is stopped.
      *
      * @param port the port to listen on
+     * @throws StartupException if startup fails
      */
     void listen(int port);
 
@@ -212,8 +292,17 @@ public interface App {
      *
      * @param host the host to bind to
      * @param port the port to listen on
+     * @throws StartupException if startup fails
      */
     void listen(String host, int port);
+
+    /**
+     * Starts the server with custom configuration.
+     *
+     * @param config the server configuration
+     * @throws StartupException if startup fails
+     */
+    void listen(ServerConfig config);
 
     /**
      * Returns the port the server is listening on.
@@ -230,7 +319,7 @@ public interface App {
      *
      * <p>
      * The server will stop accepting new connections and wait
-     * for existing requests to complete.
+     * for existing requests to complete up to the configured timeout.
      */
     void stop();
 
@@ -240,4 +329,11 @@ public interface App {
      * @return true if server is accepting requests
      */
     boolean isRunning();
+
+    /**
+     * Returns the current lifecycle phase.
+     *
+     * @return current phase
+     */
+    LifecyclePhase phase();
 }

@@ -43,6 +43,7 @@ module io.axiom.core {
     exports io.axiom.core.app;
     exports io.axiom.core.json;
     exports io.axiom.core.server;
+    exports io.axiom.core.lifecycle;
 
     // SPI for server runtime discovery
     uses io.axiom.core.server.ServerFactory;
