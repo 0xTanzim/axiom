@@ -1,7 +1,8 @@
 # Axiom Framework — Roadmap
 
-**Last Updated:** January 17, 2026
-**Current Phase:** Phase 1 Complete (95%)
+**Last Updated:** January 18, 2026
+**Current Phase:** Phase 1 Complete (97%)
+**Tests:** 305 passing
 **Next Priority:** RFC-0010 Testing Utilities
 
 ---
@@ -106,18 +107,14 @@ Before production deployment, users need observability and operational controls.
 
 ## Known DX Issues
 
-### 1. Error Messages Could Be Better
-**Issue:** Some exceptions lack context for debugging.
-**Example:** `NullPointerException` when route not found vs helpful "No route matched for GET /foo".
-**Fix:** Audit all exception types, add context.
+### ✅ FIXED: Error Messages
+**Status:** All exceptions include context (RouteNotFoundException, MethodNotAllowedException, ConfigException.Missing, etc.)
 
-### 2. No @Transactional without Processor
-**Issue:** If user forgets to add `axiom-persistence-processor`, `@Transactional` silently does nothing.
-**Fix:** Add compile-time warning or runtime check.
+### ✅ FIXED: @Transactional without Processor
+**Status:** Added `TransactionalValidator` class that detects missing processor and provides detailed fix instructions.
 
-### 3. Configuration Errors Not Clear
-**Issue:** Missing required config throws generic exception.
-**Fix:** Custom `ConfigurationException` with property name and expected type.
+### ✅ FIXED: Configuration Errors Not Clear
+**Status:** `ConfigException` has subtypes: `Missing`, `WrongType`, `BindingFailed` with full context.
 
 ### 4. No IDE Support for Route Discovery
 **Issue:** Users can't Ctrl+Click from route string to handler.
@@ -202,6 +199,233 @@ service.save(user);  // Transaction handled by generated code
 - [ ] Getting Started guide
 - [ ] Benchmark suite
 - [ ] No critical DX issues
+
+---
+
+## Development Experience
+
+### Hot Reload Options
+
+Axiom supports several hot reload solutions for development:
+
+#### Option 1: JBang (Recommended for Quick Scripts)
+```bash
+# Install jbang
+curl -Ls https://sh.jbang.dev | bash
+
+# Run with watch mode
+jbang --watch Application.java
+```
+
+#### Option 2: Spring Boot DevTools (Maven/Gradle)
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-devtools</artifactId>
+    <version>3.2.0</version>
+    <scope>runtime</scope>
+</dependency>
+```
+Note: DevTools watches for class changes, not Axiom-specific.
+
+#### Option 3: JRebel (Commercial)
+```bash
+# Add JRebel agent
+java -agentpath:/path/to/jrebel/lib/libjrebel64.so -jar app.jar
+```
+
+#### Option 4: DCEVM + HotswapAgent (Free)
+```bash
+# Use DCEVM JDK build
+# Add HotswapAgent
+java -XX:+AllowEnhancedClassRedefinition -javaagent:hotswap-agent.jar -jar app.jar
+```
+
+#### Option 5: IDE Built-in (IntelliJ IDEA)
+```
+Settings → Build → Compiler → Build project automatically
+Registry → compiler.automake.allow.when.app.running = true
+```
+
+### Recommended Dev Workflow
+
+```bash
+# Terminal 1: Watch and compile
+mvn compile -Dmaven.compiler.useIncrementalCompilation=true -q -f
+
+# Terminal 2: Run with class reload
+java --enable-preview -XX:+EnableDynamicAgentLoading -jar target/app.jar
+```
+
+---
+
+## Maven Ecosystem Compatibility
+
+### ✅ Fully Compatible
+
+Axiom works with the entire Maven ecosystem:
+
+| Tool | Status | Notes |
+|------|--------|-------|
+| Maven Central | ✅ | Standard deployment |
+| Gradle | ✅ | Works identically |
+| Maven Shade Plugin | ✅ | Fat JAR creation |
+| Maven Assembly | ✅ | Custom packaging |
+| Maven Wrapper | ✅ | Portable builds |
+| Nexus/Artifactory | ✅ | Private repos |
+| Dependabot | ✅ | Auto-updates |
+
+### Module System (JPMS)
+
+Axiom uses Java modules (`module-info.java`):
+
+```java
+module my.app {
+    requires io.axiom.core;
+    requires io.axiom.server;
+    requires io.axiom.config;      // optional
+    requires io.axiom.validation;  // optional
+    requires io.axiom.persistence; // optional
+}
+```
+
+For classpath mode (no modules), just use as regular dependencies.
+
+---
+
+## Lombok Compatibility
+
+### ✅ Fully Compatible
+
+Lombok works perfectly with Axiom:
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.34</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <annotationProcessorPaths>
+                    <!-- Lombok FIRST (generates getters/setters) -->
+                    <path>
+                        <groupId>org.projectlombok</groupId>
+                        <artifactId>lombok</artifactId>
+                        <version>1.18.34</version>
+                    </path>
+                    <!-- Axiom processor SECOND -->
+                    <path>
+                        <groupId>io.axiom</groupId>
+                        <artifactId>axiom-persistence-processor</artifactId>
+                        <version>${axiom.version}</version>
+                    </path>
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
+```
+
+### Lombok Usage with Axiom
+
+```java
+@Data
+@AllArgsConstructor
+public class User {
+    private Long id;
+    private String email;
+    private String name;
+}
+
+// Works with Axiom validation
+@Data
+public class CreateUserRequest {
+    @NotBlank
+    private String email;
+
+    @Size(min = 8)
+    private String password;
+}
+
+// Works with @Transactional
+@RequiredArgsConstructor
+public class UserService {
+    private final DataSource dataSource;
+
+    @Transactional
+    public void save(User user) {
+        // Lombok generates constructor
+    }
+}
+```
+
+### Recommendation
+
+While Lombok works, we recommend **Java records** for DTOs:
+
+```java
+// Preferred: Java record (built-in, no annotation processor)
+public record User(Long id, String email, String name) {}
+
+// Also works: Lombok
+@Data
+public class User {
+    private Long id;
+    private String email;
+    private String name;
+}
+```
+
+Records are:
+- Built into Java 16+
+- No annotation processor needed
+- Immutable by default
+- Less magic
+
+---
+
+## Example Applications
+
+### Available Examples
+
+| Example | Location | Features |
+|---------|----------|----------|
+| Hello World | `examples/hello-world/` | Basic setup |
+| Auth Example | `examples/axiom-auth-example/` | Login, JWT, DB, Validation |
+
+### Auth Example Flow
+
+```
+examples/axiom-auth-example/
+├── Application.java      ← Entry point, wires everything
+├── config/
+│   └── AppConfig.java    ← Type-safe config (@ConfigMapping)
+├── domain/
+│   └── User.java         ← Entity (Java record)
+├── dto/
+│   ├── RegisterRequest   ← Validated input
+│   ├── LoginRequest      ← Validated input
+│   └── AuthResponse      ← JWT response
+├── repository/
+│   └── UserRepository    ← DB access (@Transactional)
+├── service/
+│   ├── AuthService       ← Business logic
+│   └── JwtService        ← Token handling
+├── middleware/
+│   └── AuthMiddleware    ← JWT validation
+└── routes/
+    ├── AuthRoutes        ← POST /auth/register, /auth/login
+    └── UserRoutes        ← GET/PUT /users/me (protected)
+```
 
 ---
 

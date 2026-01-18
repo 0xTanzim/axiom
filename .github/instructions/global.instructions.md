@@ -50,15 +50,27 @@ Lower layers may refine behavior but MUST NOT violate higher layers.
 ### What Axiom IS
 
 * A Java framework (Java 25 LTS)
-* Explicit, composable, predictable
+* DX-first with hybrid approach (simple by default, explicit when needed)
+* Compile-time safe (errors at build, not runtime)
 * Runtime-agnostic via adapters
 
 ### What Axiom IS NOT
 
-* An application framework with magic
-* Annotation-driven
-* Reflection-heavy
+* An application framework with runtime magic
+* Reflection-heavy at runtime
+* Classpath-scanning based
 * Opinionated about user business logic
+
+### Hybrid Approach (Key Design Decision)
+
+Axiom uses **compile-time annotations** for DX improvement:
+* ✅ `@Service` for dependency injection (generates explicit wiring code)
+* ✅ `@Transactional` for transaction management (generates wrapper code)
+* ❌ No runtime reflection for DI
+* ❌ No classpath scanning
+* ❌ No proxy-based AOP
+
+**The generated code is always visible, debuggable, and explicit.**
 
 ---
 

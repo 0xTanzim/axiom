@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>axiom-auth-example</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Axiom Auth Example</name>
+    <description>Complete authentication example with Axiom framework</description>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Axiom version (use latest) -->
+        <axiom.version>0.1.0-SNAPSHOT</axiom.version>
+
+        <!-- Dependencies -->
+        <bcrypt.version>0.10.2</bcrypt.version>
+        <jwt.version>4.4.0</jwt.version>
+        <h2.version>2.2.224</h2.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <logback.version>1.5.6</logback.version>
+
+        <!-- Lombok (optional - works with Axiom) -->
+        <lombok.version>1.18.34</lombok.version>
+    </properties>
+
+    <dependencies>
+        <!-- ========== Axiom Framework ========== -->
+
+        <!-- Core + Server (required) -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-core</artifactId>
+            <version>${axiom.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-server</artifactId>
+            <version>${axiom.version}</version>
+        </dependency>
+
+        <!-- Configuration (optional - for type-safe config) -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-config</artifactId>
+            <version>${axiom.version}</version>
+        </dependency>
+
+        <!-- Validation (optional - for input validation) -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-validation</artifactId>
+            <version>${axiom.version}</version>
+        </dependency>
+
+        <!-- Persistence (optional - for database access) -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-persistence</artifactId>
+            <version>${axiom.version}</version>
+        </dependency>
+
+        <!-- ========== Third-party Libraries ========== -->
+
+        <!-- Password hashing -->
+        <dependency>
+            <groupId>at.favre.lib</groupId>
+            <artifactId>bcrypt</artifactId>
+            <version>${bcrypt.version}</version>
+        </dependency>
+
+        <!-- JWT tokens -->
+        <dependency>
+            <groupId>com.auth0</groupId>
+            <artifactId>java-jwt</artifactId>
+            <version>${jwt.version}</version>
+        </dependency>
+
+        <!-- Database -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>${h2.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+
+        <!-- NOTE: Lombok not included - Java 25 support pending -->
+        <!-- Use Java records for DTOs instead (built-in, no processor) -->
+
+        <!-- ========== Test Dependencies ========== -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.25.3</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                    <!-- Annotation processors -->
+                    <annotationProcessorPaths>
+                        <!-- Axiom persistence processor (generates $Tx classes) -->
+                        <path>
+                            <groupId>io.axiom</groupId>
+                            <artifactId>axiom-persistence-processor</artifactId>
+                            <version>${axiom.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Hot reload with spring-boot-devtools alternative: jbang -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <mainClass>com.example.auth.Application</mainClass>
+                    <arguments>
+                        <argument>--enable-preview</argument>
+                    </arguments>
+                </configuration>
+            </plugin>
+
+            <!-- Create executable JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.example.auth.Application</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

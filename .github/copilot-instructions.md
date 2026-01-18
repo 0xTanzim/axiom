@@ -72,9 +72,8 @@ Architectural drift is treated as a **defect**, not a preference.
 ### 3. Design Principles
 
 * Single Responsibility Principle (SRP) is mandatory
-* Constructor injection only
-* No static global state
-* No hidden lifecycle, reflection-based wiring, or implicit execution
+* Constructor injection only (for testability)
+* No static global state (except approved singletons like `AxiomPersistence`)
 * Every abstraction must:
 
   1. Solve a real problem
@@ -86,11 +85,14 @@ Architectural drift is treated as a **defect**, not a preference.
 ### 4. Framework-Specific Style
 
 * This is a **framework**, not an application
-* Avoid annotations unless explicitly designed and RFC-approved
-* Avoid reflection unless RFC-approved
+* **Annotations are allowed** for DX improvement when:
+  * They are compile-time only (no runtime reflection)
+  * They generate explicit, readable code
+  * They are documented in an RFC (e.g., RFC-0011 for DI)
+* **Avoid runtime reflection** — prefer compile-time code generation
 * Prefer interfaces with **small, focused contracts**
 * Favor composition over inheritance
-* Avoid opinionated behavior that limits user control
+* **Hybrid approach**: Simple by default, explicit when needed
 
 Axiom enables users — it does not manage them.
 
@@ -180,12 +182,13 @@ Performance regressions are treated as bugs.
 
 ## What Copilot MUST Avoid
 
-* Spring-style magic or auto-wiring
-* Annotation-driven hidden logic
+* **Runtime reflection** for dependency injection (use compile-time generation)
+* Spring-style classpath scanning or runtime bean discovery
 * Overengineering or speculative abstractions
 * God classes or central managers
 * Deep inheritance trees
 * Framework-controlled business logic
+* Hidden behavior that users can't debug
 
 ---
 

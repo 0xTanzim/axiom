@@ -1,8 +1,8 @@
 # Axiom Framework — Progress Report
 
-**Date:** January 17, 2026
+**Date:** January 18, 2026
 **Version:** 0.1.0-SNAPSHOT
-**Tests:** 295 passing ✅
+**Tests:** 305 passing ✅
 **Modules:** 6 (core, server, persistence, persistence-processor, config, validation)
 **Java Target:** 25 (LTS)
 
@@ -30,11 +30,11 @@ The only gap is **RFC-0010: Testing Utilities**.
 |--------|-------|--------|-------------|
 | `axiom-core` | 135 | ✅ Complete | Handler, Context, Router, Middleware, App, Lifecycle, Error |
 | `axiom-server` | 9 | ✅ Complete | JDK HttpServer adapter, virtual threads, MDC |
-| `axiom-persistence` | 44 | ✅ Complete | Transaction, JDBC, JPA, jOOQ runtime |
+| `axiom-persistence` | 54 | ✅ Complete | Transaction, JDBC, JPA, jOOQ, TransactionalValidator |
 | `axiom-persistence-processor` | 16 | ✅ Complete | @Transactional compile-time code generation |
 | `axiom-config` | 43 | ✅ Complete | SmallRye Config, .env, profiles, type-safe |
 | `axiom-validation` | 48 | ✅ Complete | Hibernate Validator, ValidationResult |
-| **Total** | **295** | ✅ | All tests passing |
+| **Total** | **305** | ✅ | All tests passing |
 
 ---
 
@@ -197,9 +197,9 @@ axiom-persistence-processor (compile-time only, generates code)
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
-| Tests | 295 | >250 | ✅ Exceeded |
+| Tests | 305 | >250 | ✅ Exceeded |
 | Test Coverage | ~85% | >80% | ✅ Met |
-| Build Time | ~12s | <30s | ✅ Fast |
+| Build Time | ~8s | <30s | ✅ Fast |
 | Java Version | 25 | 25 LTS | ✅ Current |
 | System.out/err in code | 0 | 0 | ✅ Clean |
 | SLF4J logging | Yes | Yes | ✅ Complete |
@@ -208,10 +208,10 @@ axiom-persistence-processor (compile-time only, generates code)
 
 ## Recent Completions (This Session)
 
-1. ✅ **Package naming fix** — Renamed `com.axiom.*` to `io.axiom.*` in config/validation
-2. ✅ **RFC-0013 gaps fixed** — Added `subset()` and `bind()` methods
-3. ✅ **RFC-0012 Logging** — Full SLF4J integration with MDC
-4. ✅ **Audit complete** — No System.err/out in production code
+1. ✅ **DX Issue #2 Fixed** — Added `TransactionalValidator` with 10 new tests
+2. ✅ **Example App** — Complete auth example (`examples/axiom-auth-example/`)
+3. ✅ **Hot Reload** — Documented JBang, DevTools, JRebel, DCEVM options
+4. ✅ **Maven/Lombok** — Full compatibility documented in ROADMAP
 
 ---
 
