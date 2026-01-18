@@ -176,15 +176,28 @@ app.use((c, next) -> {
 
 ## Modules
 
-| Module | Description | Required |
-|--------|-------------|----------|
-| `axiom-core` | Core abstractions | ✅ Yes |
-| `axiom-http` | HTTP types | ✅ Yes |
-| `axiom-runtime-jdk` | JDK HttpServer | Choose one |
-| `axiom-runtime-netty` | Netty adapter | Choose one |
-| `axiom-json-jackson` | Jackson codec | Optional |
-| `axiom-json-gson` | Gson codec | Optional |
-| `axiom-test` | Testing utilities | Test scope |
+**What users see:** ONE dependency
+
+```xml
+<dependency>
+    <groupId>io.axiom</groupId>
+    <artifactId>axiom</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+
+**What's inside (internal):**
+
+| Module | Purpose |
+|--------|---------|
+| `axiom-core` | Core primitives (zero external deps) |
+| `axiom-config` | Configuration |
+| `axiom-di` | Dependency Injection |
+| `axiom-validation` | Input validation |
+| `axiom-server` | HTTP server |
+| `axiom-persistence` | Database |
+
+> Users don't need to know about internal modules. Just add `axiom`.
 
 ---
 
@@ -198,21 +211,23 @@ app.use((c, next) -> {
 
 ## Installation
 
-> ⚠️ Not published yet — architecture phase.
+> ⚠️ Not published to Maven Central yet — in development.
 
-**Maven (future):**
+**Maven:**
 ```xml
 <dependency>
     <groupId>io.axiom</groupId>
-    <artifactId>axiom-runtime-jdk</artifactId>
+    <artifactId>axiom</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
 
-**Gradle (future):**
+**Gradle:**
 ```kotlin
-implementation("io.axiom:axiom-runtime-jdk:0.1.0")
+implementation("io.axiom:axiom:0.1.0")
 ```
+
+That's it. ONE dependency. Full framework.
 
 ---
 

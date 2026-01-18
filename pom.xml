@@ -5,20 +5,30 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.axiom</groupId>
-    <artifactId>axiom</artifactId>
+    <artifactId>axiom-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Axiom Framework</name>
-    <description>A modern Java framework built for explicitness, composability, and long-term architectural clarity</description>
+    <name>Axiom Parent</name>
+    <description>Parent POM for Axiom Framework modules</description>
 
+    <!-- =========================================================================
+         Simple Module Structure:
+
+         - axiom-core (routing, config, DI, validation, server)
+         - axiom-persistence + processor
+         - axiom (THE ONE dependency users add)
+         ========================================================================= -->
     <modules>
+        <!-- Core Framework -->
         <module>axiom-core</module>
-        <module>axiom-server</module>
+
+        <!-- Persistence (separate due to annotation processor) -->
         <module>axiom-persistence</module>
         <module>axiom-persistence-processor</module>
-        <module>axiom-config</module>
-        <module>axiom-validation</module>
+
+        <!-- THE package users add -->
+        <module>axiom-framework</module>
     </modules>
 
     <properties>

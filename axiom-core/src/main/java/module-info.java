@@ -1,43 +1,47 @@
 
 /**
- * Core abstractions for the Axiom web framework.
+ * Core Axiom framework module.
  *
  * <p>
- * This module contains the fundamental interfaces and types that
- * define Axiom's programming model. It has zero external dependencies
- * and provides:
+ * This module contains the complete Axiom framework core including:
  *
  * <ul>
- * <li>{@link io.axiom.core.handler.Handler} - Core request handler</li>
- * <li>{@link io.axiom.core.context.Context} - Request/response context</li>
- * <li>{@link io.axiom.core.routing.Router} - Route registration</li>
- * <li>{@link io.axiom.core.middleware.MiddlewareHandler} - Middleware API</li>
- * <li>{@link io.axiom.core.app.App} - Application interface</li>
- * <li>{@link io.axiom.core.error.AxiomException} - Exception hierarchy</li>
+ * <li><b>Routing</b> - {@link io.axiom.core.routing.Router}, path matching</li>
+ * <li><b>Context</b> - {@link io.axiom.core.context.Context} request/response</li>
+ * <li><b>Middleware</b> - {@link io.axiom.core.middleware.MiddlewareHandler}</li>
+ * <li><b>Config</b> - {@link io.axiom.config.Config} zero-headache configuration</li>
+ * <li><b>DI</b> - {@link io.axiom.di.Service} compile-time dependency injection</li>
+ * <li><b>Validation</b> - {@link io.axiom.validation.AxiomValidator}</li>
+ * <li><b>Server</b> - {@link io.axiom.server.JdkServer} JDK HTTP server</li>
  * </ul>
- *
- * <h2>Module Structure</h2>
- * <p>
- * This module exports all public packages. Internal packages
- * (like routing.internal) are not exported and should not be
- * accessed directly.
- *
- * <h2>Dependencies</h2>
- * <p>
- * axiom-core has NO dependencies. It uses only JDK standard library.
  *
  * @since 0.1.0
  */
 module io.axiom.core {
-    // Logging facade
+    // Logging
     requires org.slf4j;
 
-    // Jackson dependency for JSON processing
+    // JSON
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.annotation;
 
-    // Public API packages
+    // Configuration (automatic modules)
+    requires smallrye.config;
+    requires smallrye.config.common;
+
+    // Dependency Injection (automatic module)
+    requires dagger;
+    requires jakarta.inject;
+
+    // Validation
+    requires jakarta.validation;
+    requires org.hibernate.validator;
+
+    // JDK HTTP Server
+    requires jdk.httpserver;
+
+    // ==================== Core API ====================
     exports io.axiom.core.handler;
     exports io.axiom.core.context;
     exports io.axiom.core.routing;
@@ -48,9 +52,19 @@ module io.axiom.core {
     exports io.axiom.core.server;
     exports io.axiom.core.lifecycle;
 
+    // ==================== Config ====================
+    exports io.axiom.config;
+
+    // ==================== Dependency Injection ====================
+    exports io.axiom.di;
+
+    // ==================== Validation ====================
+    exports io.axiom.validation;
+
+    // ==================== Server Implementation ====================
+    exports io.axiom.server;
+
     // SPI for server runtime discovery
     uses io.axiom.core.server.ServerFactory;
-
-    // Internal packages - NOT exported
-    // io.axiom.core.routing.internal is hidden
+    provides io.axiom.core.server.ServerFactory with io.axiom.server.JdkServerFactory;
 }

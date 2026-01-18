@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.axiom</groupId>
+        <artifactId>axiom-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <!--
+        =====================================================================
+        THIS IS THE ONLY DEPENDENCY USERS NEED
+        =====================================================================
+
+        Usage:
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom</artifactId>
+            <version>0.1.0</version>
+        </dependency>
+
+        That's it. Full framework. Done.
+    -->
+    <artifactId>axiom</artifactId>
+    <packaging>pom</packaging>
+
+    <name>Axiom</name>
+    <description>
+        Axiom Framework - ONE dependency, full power.
+
+        A modern, DX-first Java framework for building web applications.
+        Just add this dependency and start coding.
+    </description>
+
+    <dependencies>
+        <!-- Core Framework (routing, config, DI, validation, server) -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Database Persistence -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-persistence</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+</project>
