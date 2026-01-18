@@ -1,0 +1,310 @@
+---
+title: Getting Started
+description: Install Axiom and create your first application in under 5 minutes
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Getting Started
+
+Create your first Axiom application in under 5 minutes.
+
+## Prerequisites
+
+<Callout type="warn" title="Java 25 Required">
+Axiom requires **Java 25** or later. Download from [Adoptium](https://adoptium.net/) or [Oracle](https://www.oracle.com/java/technologies/downloads/).
+</Callout>
+
+## Installation
+
+Add Axiom to your project:
+
+<Tabs items={['Maven', 'Gradle Groovy', 'Gradle Kotlin']}>
+  <Tab value="Maven">
+```xml title="pom.xml"
+<dependencies>
+    <dependency>
+        <groupId>io.github.0xtanzim</groupId>
+        <artifactId>axiom</artifactId>
+        <version>0.1.0</version>
+    </dependency>
+</dependencies>
+
+<properties>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
+</properties>
+```
+  </Tab>
+  <Tab value="Gradle Groovy">
+```groovy title="build.gradle"
+plugins {
+    id 'java'
+    id 'application'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+dependencies {
+    implementation 'io.github.0xtanzim:axiom:0.1.0'
+}
+
+application {
+    mainClass = 'App'
+}
+```
+  </Tab>
+  <Tab value="Gradle Kotlin">
+```kotlin title="build.gradle.kts"
+plugins {
+    java
+    application
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+dependencies {
+    implementation("io.github.0xtanzim:axiom:0.1.0")
+}
+
+application {
+    mainClass.set("App")
+}
+```
+  </Tab>
+</Tabs>
+
+## Your First App
+
+Choose your preferred style:
+
+<Tabs items={['Simple Router', 'Full Control']}>
+  <Tab value="Simple Router">
+<Steps>
+  <Step>
+    ### Create the Main Class
+
+    Create a file `src/main/java/App.java`:
+
+    ```java title="App.java"
+    import io.axiom.core.app.Axiom;
+    import io.axiom.core.routing.Router;
+
+    public class App {
+        public static void main(String[] args) {
+            Router router = new Router();
+            router.get("/", c -> c.text("Hello, Axiom!"));
+
+            Axiom.start(router, 8080);
+            System.out.println("🚀 Server running at http://localhost:8080");
+        }
+    }
+    ```
+  </Step>
+
+  <Step>
+    ### Run the Application
+
+    <Tabs items={['Maven', 'Gradle']}>
+      <Tab value="Maven">
+    ```bash
+    mvn compile exec:java -Dexec.mainClass="App"
+    ```
+      </Tab>
+      <Tab value="Gradle">
+    ```bash
+    ./gradlew run
+    ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Test It
+
+    Open your browser to [http://localhost:8080](http://localhost:8080) — you'll see "Hello, Axiom!"
+
+    Or use curl:
+    ```bash
+    curl http://localhost:8080
+    # Hello, Axiom!
+    ```
+  </Step>
+</Steps>
+  </Tab>
+  <Tab value="Full Control">
+<Steps>
+  <Step>
+    ### Create the Main Class
+
+    Create a file `src/main/java/App.java`:
+
+    ```java title="App.java"
+    import io.axiom.core.app.*;
+    import io.axiom.core.routing.Router;
+
+    public class App {
+        public static void main(String[] args) {
+            Router router = new Router();
+            router.get("/", c -> c.text("Hello, Axiom!"));
+
+            App app = Axiom.create();
+            app.route(router);
+            app.onReady(() -> {
+                System.out.println("🚀 Server running at http://localhost:8080");
+            });
+            app.listen(8080);
+        }
+    }
+    ```
+  </Step>
+
+  <Step>
+    ### Run the Application
+
+    <Tabs items={['Maven', 'Gradle']}>
+      <Tab value="Maven">
+    ```bash
+    mvn compile exec:java -Dexec.mainClass="App"
+    ```
+      </Tab>
+      <Tab value="Gradle">
+    ```bash
+    ./gradlew run
+    ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step>
+    ### Test It
+
+    Open your browser to [http://localhost:8080](http://localhost:8080) — you'll see "Hello, Axiom!"
+
+    Or use curl:
+    ```bash
+    curl http://localhost:8080
+    # Hello, Axiom!
+    ```
+  </Step>
+</Steps>
+  </Tab>
+</Tabs>
+
+## Add More Routes
+
+```java title="App.java"
+import io.axiom.core.app.Axiom;
+import io.axiom.core.routing.Router;
+import java.util.List;
+import java.util.Map;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+
+        // Text response
+        router.get("/", c -> c.text("Hello!"));
+
+        // JSON response
+        router.get("/api/status", c ->
+            c.json(Map.of("status", "ok", "version", "0.1.0"))
+        );
+
+        // Path parameters
+        router.get("/users/:id", c -> {
+            String id = c.param("id");
+            c.json(Map.of("id", id, "name", "User " + id));
+        });
+
+        // Query parameters
+        router.get("/search", c -> {
+            String query = c.query("q");
+            c.json(Map.of("query", query, "results", List.of()));
+        });
+
+        // POST with body
+        router.post("/users", c -> {
+            User user = c.body(User.class);
+            c.status(201);
+            c.json(user);
+        });
+
+        Axiom.start(router, 8080);
+    }
+}
+
+record User(String name, String email) {}
+```
+
+## Full Control with Middleware
+
+When you need middleware, lifecycle hooks, or error handling:
+
+```java title="App.java"
+import io.axiom.core.app.*;
+import io.axiom.core.routing.Router;
+import java.util.Map;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/", c -> c.text("Hello!"));
+        router.get("/users/:id", c -> c.json(Map.of("id", c.param("id"))));
+
+        App app = Axiom.create();
+
+        // Middleware (choose your style)
+        app.use((ctx, next) -> {
+            System.out.println(ctx.method() + " " + ctx.path());
+            next.run();
+        });
+
+        // Lifecycle hooks
+        app.onStart(() -> System.out.println("Connecting to database..."));
+        app.onReady(() -> System.out.println("🚀 Server ready!"));
+        app.onShutdown(() -> System.out.println("Cleaning up..."));
+
+        // Error handling
+        app.onError((ctx, e) -> {
+            ctx.status(500);
+            ctx.json(Map.of("error", e.getMessage()));
+        });
+
+        app.route(router);
+        app.listen(8080);
+    }
+}
+```
+
+## Project Structure
+
+```
+my-app/
+├── pom.xml (or build.gradle)
+└── src/
+    └── main/
+        └── java/
+            └── App.java
+```
+
+<Callout type="info">
+That's the **entire** project structure. No `application.properties`, no XML config, no annotations to learn.
+</Callout>
+
+## What's Next?
+
+- **[Routing](/docs/routing)** — Path patterns, groups, and parameters
+- **[Middleware](/docs/middleware)** — Logging, auth, CORS
+- **[Configuration](/docs/config)** — Environment variables and config files
+- **[Persistence](/docs/persistence)** — Connect to databases

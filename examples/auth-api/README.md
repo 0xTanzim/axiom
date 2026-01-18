@@ -155,13 +155,8 @@ public class AuthRoutes {
 ### 5. Application Startup
 
 ```java
-var component = DaggerAppComponent.create();
-var services = new Services(
-    component.authRoutes(),
-    component.userRoutes(),
-    component.healthRoutes()
-);
-Axiom.start(services, 8080);  // Auto-discovers @Routes
+// ONE LINE - Framework handles everything!
+AxiomApplication.start(Application.class, 8080);
 ```
 
 ## Demo User

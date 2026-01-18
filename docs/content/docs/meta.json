@@ -1,0 +1,17 @@
+{
+  "title": "Axiom Docs",
+  "root": true,
+  "pages": [
+    "index",
+    "getting-started",
+    "---Core Concepts---",
+    "routing",
+    "middleware",
+    "---Configuration---",
+    "config",
+    "---Database---",
+    "persistence",
+    "---Advanced---",
+    "validation"
+  ]
+}

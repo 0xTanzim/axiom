@@ -1,0 +1,217 @@
+---
+title: Introduction
+description: What is Axiom and why you should use it
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Welcome to Axiom
+
+Axiom is a **modern, DX-first Java web framework** designed for developers who want simplicity without sacrificing power.
+
+<Callout type="info" title="Java 25 Required">
+Axiom targets Java 25 (LTS) exclusively. No backward compatibility constraints means you get the best of modern Java.
+</Callout>
+
+## Why Axiom?
+
+<Cards>
+  <Card title="🚀 One Dependency" href="/docs/getting-started">
+    Just add `axiom` to your project. No starters, no BOMs, no parent POMs.
+  </Card>
+  <Card title="⚡ Sub-100ms Startup" href="/docs/getting-started">
+    Virtual threads by default. No classpath scanning. Instant startup.
+  </Card>
+  <Card title="🔧 Explicit Over Magic" href="/docs/routing">
+    No runtime reflection for DI. You can debug every line of code.
+  </Card>
+  <Card title="🎯 DX-First Design" href="/docs/getting-started">
+    API designed for developer happiness. Intuitive and hard to misuse.
+  </Card>
+</Cards>
+
+## Quick Example
+
+Axiom offers **three startup styles** — choose the one that fits your needs:
+
+<Tabs items={['Simple Router', 'Full Control', 'Auto-Discovery']}>
+  <Tab value="Simple Router">
+The fastest way to get started:
+
+```java title="App.java"
+import io.axiom.core.app.Axiom;
+import io.axiom.core.routing.Router;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/", c -> c.text("Hello, World!"));
+        router.get("/users/:id", c -> {
+            String id = c.param("id");
+            c.json(Map.of("id", id, "name", "John"));
+        });
+
+        Axiom.start(router, 8080);
+    }
+}
+```
+  </Tab>
+  <Tab value="Full Control">
+When you need middleware, lifecycle hooks, or error handling:
+
+```java title="App.java"
+import io.axiom.core.app.*;
+import io.axiom.core.routing.Router;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/", c -> c.text("Hello, World!"));
+        router.get("/users/:id", c -> c.json(userService.find(c.param("id"))));
+
+        App app = Axiom.create();
+        app.use((ctx, next) -> {
+            System.out.println(ctx.method() + " " + ctx.path());
+            next.run();
+        });
+        app.route(router);
+        app.onError((ctx, e) -> {
+            ctx.status(500);
+            ctx.json(Map.of("error", e.getMessage()));
+        });
+        app.listen(8080);
+    }
+}
+```
+  </Tab>
+  <Tab value="Auto-Discovery">
+**ONE LINE startup** with full DI — the framework handles everything:
+
+```java title="Application.java"
+import io.axiom.di.AxiomApplication;
+
+public class Application {
+    public static void main(String[] args) {
+        // That's it! Discovers @Service, @Repository, @Routes, wires deps, starts server
+        AxiomApplication.start(Application.class, 8080);
+    }
+}
+```
+
+```java title="UserRoutes.java"
+import io.axiom.core.routing.Router;
+import io.axiom.di.Routes;
+import jakarta.inject.Inject;
+
+@Routes("/users")
+public class UserRoutes {
+
+    private final UserService userService;
+
+    @Inject
+    public UserRoutes(UserService userService) {
+        this.userService = userService;
+    }
+
+    public Router router() {
+        var r = new Router();
+        r.get("/", c -> c.json(userService.findAll()));
+        r.get("/:id", c -> c.json(userService.findById(c.param("id"))));
+        return r;
+    }
+}
+```
+  </Tab>
+</Tabs>
+
+## Installation
+
+<Tabs items={['Maven', 'Gradle Groovy', 'Gradle Kotlin']}>
+  <Tab value="Maven">
+```xml title="pom.xml"
+<dependency>
+    <groupId>io.github.0xtanzim</groupId>
+    <artifactId>axiom</artifactId>
+    <version>0.1.0</version>
+</dependency>
+```
+  </Tab>
+  <Tab value="Gradle Groovy">
+```groovy title="build.gradle"
+implementation 'io.github.0xtanzim:axiom:0.1.0'
+```
+  </Tab>
+  <Tab value="Gradle Kotlin">
+```kotlin title="build.gradle.kts"
+implementation("io.github.0xtanzim:axiom:0.1.0")
+```
+  </Tab>
+</Tabs>
+
+That's it. **No parent POMs. No BOMs. No starter dependencies.**
+
+## Comparison
+
+| Feature | Spring Boot | Axiom |
+|---------|------------|-------|
+| Dependencies | 100+ | 1 |
+| Startup time | 2-10s | Under 100ms |
+| Config files | Many | 0 (optional) |
+| Learning curve | Steep | Minimal |
+| Runtime magic | Heavy | None |
+| Java version | 17+ | 25 |
+
+## Philosophy
+
+### 1. Explicit Over Implicit
+
+Unlike Spring, Axiom doesn't scan classpaths or create beans magically:
+
+```java
+// ❌ Spring way - magic
+@RestController
+public class UserController { ... }
+
+// ✅ Axiom way - explicit
+Router router = new Router();
+router.get("/users", userHandler::list);
+router.post("/users", userHandler::create);
+```
+
+### 2. Modern Java
+
+Axiom embraces modern Java features:
+
+```java
+// Records for DTOs
+record User(String id, String name, String email) {}
+
+// Pattern matching
+switch (result) {
+    case Success(var user) -> ctx.json(user);
+    case NotFound() -> { ctx.status(404); ctx.text("Not found"); }
+    case Error(var msg) -> { ctx.status(500); ctx.text(msg); }
+}
+
+// Virtual threads by default
+app.listen(8080); // Uses virtual threads automatically
+```
+
+## Next Steps
+
+<Cards>
+  <Card title="Getting Started" href="/docs/getting-started">
+    Install and create your first app
+  </Card>
+  <Card title="Routing" href="/docs/routing">
+    Learn about path patterns and handlers
+  </Card>
+  <Card title="Configuration" href="/docs/config">
+    Environment variables and config files
+  </Card>
+  <Card title="Persistence" href="/docs/persistence">
+    Connect to databases
+  </Card>
+</Cards>

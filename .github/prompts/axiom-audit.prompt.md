@@ -1,11 +1,9 @@
 ---
-
 description: 'Comprehensive, RFC-driven audit and hardening prompt for the Axiom framework. Enforces Java 25 best practices, DX-first APIs, performance discipline, and framework-grade documentation.'
 name: 'Axiom Unified Framework Audit'
 agent: Axiom_Framework_Engineer
 argument-hint: 'Optional: target runtime adapter (jdk, netty) or module name'
------------------------------------------------------------------------------
-
+---
 # Axiom Framework Audit — Unified & Hardened
 
 ## Mission
@@ -126,6 +124,35 @@ Never guess framework behavior.
 * No implementation leakage
 * Immutability preferred
 * Typed, explicit error signaling
+
+### Legacy & Deprecated Code Detection (MANDATORY)
+
+**Actively search for and remove legacy patterns:**
+
+1. **Duplicate APIs** — Multiple ways to do the same thing
+   * Example: `Axiom.start(Object, port)` vs `AxiomApplication.start(Class, port)`
+   * Keep canonical pattern, remove legacy
+
+2. **Transitional Code** — Code written before final design was established
+   * Manual composition patterns superseded by DI
+   * Reflection-based discovery superseded by compile-time
+
+3. **Dead Code** — Unused methods, classes, or branches
+   * Search for methods with zero usages
+   * Remove commented-out code
+
+4. **API Redundancy** — Same functionality exposed multiple ways
+   * Consolidate to single, well-documented API
+
+### Legacy Pattern Checklist
+
+| Pattern | Status | Action |
+|---------|--------|--------|
+| `Axiom.start(Object, port)` | ❌ Removed | Use `AxiomApplication.start(Class, port)` |
+| `Axiom.start(Router, port)` | ✅ Keep | Simple apps, no DI |
+| `Axiom.create()` → Full Control | ✅ Keep | RFC-0001 pattern |
+| `AxiomApplication.start()` | ✅ Keep | RFC-0011 pattern |
+| Manual `Services` record | ❌ Remove | Use auto-discovery |
 
 ### Stability Tiers
 
