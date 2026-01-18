@@ -48,6 +48,13 @@
             <version>${axiom.version}</version>
         </dependency>
 
+        <!-- Axiom Config (for configuration) -->
+        <dependency>
+            <groupId>io.axiom</groupId>
+            <artifactId>axiom-config</artifactId>
+            <version>${axiom.version}</version>
+        </dependency>
+
         <!-- Axiom Persistence (for database) -->
         <dependency>
             <groupId>io.axiom</groupId>
