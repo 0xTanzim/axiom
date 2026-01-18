@@ -102,6 +102,15 @@ public final class DefaultContext implements Context {
     }
 
     @Override
+    public String bodyRaw() {
+        final byte[] rawBody = this.request.body();
+        if (rawBody == null || rawBody.length == 0) {
+            return "";
+        }
+        return new String(rawBody, StandardCharsets.UTF_8);
+    }
+
+    @Override
     public Map<String, String> headers() {
         return this.request.headers();
     }

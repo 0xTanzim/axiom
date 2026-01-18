@@ -6,6 +6,7 @@ import java.util.function.*;
 import org.slf4j.*;
 
 import io.axiom.core.handler.*;
+import io.axiom.core.middleware.*;
 import io.axiom.core.routing.internal.*;
 
 /**
@@ -65,17 +66,52 @@ public final class Router {
 
     private final RouteTrie trie;
     private final String basePath;
+    private final List<MiddlewareHandler> middlewares;
 
     /**
      * Creates a new router with no base path.
      */
     public Router() {
-        this(new RouteTrie(), "");
+        this(new RouteTrie(), "", new ArrayList<>());
     }
 
-    private Router(final RouteTrie trie, final String basePath) {
+    private Router(final RouteTrie trie, final String basePath, final List<MiddlewareHandler> middlewares) {
         this.trie = trie;
         this.basePath = basePath;
+        this.middlewares = middlewares;
+    }
+
+    // ========== Middleware ==========
+
+    /**
+     * Registers middleware for this router.
+     *
+     * <p>Middleware registered on a router applies to all routes in that router.
+     * It wraps route handlers, executing before and optionally after.
+     *
+     * <pre>{@code
+     * Router router = new Router();
+     * router.use(authMiddleware::handle);  // Apply to all routes
+     * router.get("/me", ctx -> ctx.json(user));
+     * router.get("/profile", ctx -> ctx.json(profile));
+     * }</pre>
+     *
+     * @param middleware the middleware handler
+     * @return this router for chaining
+     */
+    public Router use(final MiddlewareHandler middleware) {
+        Objects.requireNonNull(middleware, "Middleware cannot be null");
+        this.middlewares.add(middleware);
+        return this;
+    }
+
+    /**
+     * Returns the middleware registered on this router.
+     *
+     * @return list of middleware handlers
+     */
+    public List<MiddlewareHandler> middlewares() {
+        return List.copyOf(this.middlewares);
     }
 
     // ========== HTTP Method Shortcuts ==========
@@ -222,7 +258,7 @@ public final class Router {
         Objects.requireNonNull(configure, "Configure function cannot be null");
 
         final String groupBasePath = PathParser.join(this.basePath, prefix);
-        final Router groupRouter = new Router(this.trie, groupBasePath);
+        final Router groupRouter = new Router(this.trie, groupBasePath, new ArrayList<>(this.middlewares));
         configure.accept(groupRouter);
 
         return this;

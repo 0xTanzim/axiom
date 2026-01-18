@@ -125,6 +125,39 @@ public interface Context {
     <T> T body(Class<T> type);
 
     /**
+     * Returns the request body as a dynamic Map (schemaless).
+     *
+     * <p>This is the Koa/Hono/Express style - no DTOs needed:
+     *
+     * <pre>{@code
+     * router.post("/login", ctx -> {
+     *     var body = ctx.bodyAsMap();
+     *     String username = (String) body.get("username");
+     *     String password = (String) body.get("password");
+     *     // ... use directly
+     * });
+     * }</pre>
+     *
+     * <p>For type-safe apps, use {@link #body(Class)} with records instead.
+     *
+     * @return parsed JSON body as a Map
+     * @throws io.axiom.core.error.BodyParseException if parsing fails
+     */
+    @SuppressWarnings("unchecked")
+    default Map<String, Object> bodyAsMap() {
+        return this.body((Class<Map<String, Object>>) (Class<?>) Map.class);
+    }
+
+    /**
+     * Returns the raw request body as a String.
+     *
+     * <p>Useful for custom parsing or non-JSON content types.
+     *
+     * @return raw body string
+     */
+    String bodyRaw();
+
+    /**
      * Returns all request headers.
      *
      * <p>
