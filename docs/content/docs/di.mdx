@@ -1,0 +1,648 @@
+---
+title: Dependency Injection
+description: Zero-config auto-discovery with compile-time wiring
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Dependency Injection
+
+Axiom provides **zero-config DI** with auto-discovery. One line starts your entire application.
+
+## One-Line Startup
+
+```java title="Application.java"
+import io.axiom.di.AxiomApplication;
+
+public class Application {
+    public static void main(String[] args) {
+        AxiomApplication.start(Application.class, 8080);
+    }
+}
+```
+
+That's it. The framework:
+1. Scans the package for annotated classes
+2. Instantiates and wires dependencies
+3. Mounts all routes
+4. Starts the server
+
+<Callout type="info" title="No Magic">
+Unlike Spring, Axiom uses **compile-time code generation** for DI. You can debug every line of dependency wiring.
+</Callout>
+
+---
+
+## Annotations
+
+### @Routes
+
+Define HTTP endpoints with `@Routes`:
+
+```java title="UserRoutes.java"
+import io.axiom.di.Routes;
+import io.axiom.core.routing.Router;
+import jakarta.inject.Inject;
+
+@Routes("/users")
+public class UserRoutes {
+
+    private final UserService userService;
+
+    @Inject
+    public UserRoutes(UserService userService) {
+        this.userService = userService;
+    }
+
+    public Router router() {
+        var r = new Router();
+
+        r.get("/", ctx -> ctx.json(userService.findAll()));
+
+        r.get("/:id", ctx -> {
+            var id = ctx.paramOrThrow("id");
+            userService.findById(id)
+                .ifPresentOrElse(
+                    ctx::json,
+                    ctx::notFound
+                );
+        });
+
+        r.post("/", ctx -> {
+            var req = ctx.body(CreateUserRequest.class);
+            var user = userService.create(req);
+            ctx.status(201);
+            ctx.json(user);
+        });
+
+        return r;
+    }
+}
+```
+
+<Accordions>
+  <Accordion title="@Routes Options">
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `value` | `String` | `""` | Base path for all routes |
+| `order` | `int` | `0` | Mount order (lower = first) |
+
+```java
+@Routes(value = "/admin", order = 100)
+public class AdminRoutes { ... }
+```
+  </Accordion>
+</Accordions>
+
+### @Service
+
+Business logic layer:
+
+```java title="UserService.java"
+import io.axiom.di.Service;
+import jakarta.inject.Inject;
+
+@Service
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final EmailService emailService;
+
+    @Inject
+    public UserService(UserRepository userRepository, EmailService emailService) {
+        this.userRepository = userRepository;
+        this.emailService = emailService;
+    }
+
+    public List<User> findAll() {
+        return userRepository.findAll();
+    }
+
+    public Optional<User> findById(String id) {
+        return userRepository.findById(Long.parseLong(id));
+    }
+
+    public User create(CreateUserRequest request) {
+        var user = userRepository.create(request.name(), request.email());
+        emailService.sendWelcome(user.email());
+        return user;
+    }
+}
+```
+
+### @Repository
+
+Data access layer:
+
+```java title="UserRepository.java"
+import io.axiom.di.Repository;
+import io.axiom.persistence.tx.Transaction;
+import io.axiom.persistence.jdbc.Jdbc;
+
+@Repository
+public class UserRepository {
+
+    public List<User> findAll() {
+        return Transaction.execute(() ->
+            Jdbc.query("SELECT * FROM users ORDER BY created_at DESC", User::fromRow)
+        );
+    }
+
+    public Optional<User> findById(long id) {
+        return Transaction.execute(() ->
+            Jdbc.queryOne("SELECT * FROM users WHERE id = ?", User::fromRow, id)
+        );
+    }
+
+    public User create(String name, String email) {
+        return Transaction.execute(() -> {
+            long id = Jdbc.insertAndReturnKey(
+                "INSERT INTO users (name, email) VALUES (?, ?)",
+                name, email
+            );
+            return new User(id, name, email);
+        });
+    }
+}
+```
+
+### @Middleware
+
+Global middleware with ordering:
+
+```java title="LoggingMiddleware.java"
+import io.axiom.di.Middleware;
+import io.axiom.core.middleware.MiddlewareHandler;
+import io.axiom.core.context.Context;
+import io.axiom.core.middleware.Next;
+
+@Middleware(order = 1)  // Lower = runs first
+public class LoggingMiddleware implements MiddlewareHandler {
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        long start = System.nanoTime();
+        System.out.printf("--> %s %s%n", ctx.method(), ctx.path());
+
+        try {
+            next.run();
+        } finally {
+            long ms = (System.nanoTime() - start) / 1_000_000;
+            System.out.printf("<-- %s (%dms)%n", ctx.path(), ms);
+        }
+    }
+}
+```
+
+<Accordions>
+  <Accordion title="Middleware Order">
+```java
+@Middleware(order = 1)   // Runs first (logging)
+public class LoggingMiddleware implements MiddlewareHandler { ... }
+
+@Middleware(order = 10)  // Runs second (CORS)
+public class CorsMiddleware implements MiddlewareHandler { ... }
+
+@Middleware(order = 100) // Runs last (auth)
+public class AuthMiddleware implements MiddlewareHandler { ... }
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## Constructor Injection
+
+Use `@Inject` from Jakarta to declare dependencies:
+
+```java
+import jakarta.inject.Inject;
+
+@Service
+public class OrderService {
+
+    private final UserRepository userRepository;
+    private final ProductRepository productRepository;
+    private final PaymentService paymentService;
+    private final EmailService emailService;
+
+    @Inject
+    public OrderService(
+        UserRepository userRepository,
+        ProductRepository productRepository,
+        PaymentService paymentService,
+        EmailService emailService
+    ) {
+        this.userRepository = userRepository;
+        this.productRepository = productRepository;
+        this.paymentService = paymentService;
+        this.emailService = emailService;
+    }
+
+    // ... methods using injected dependencies
+}
+```
+
+<Callout type="warn" title="Constructor Injection Only">
+Axiom supports **constructor injection only**. No field injection, no setter injection. This ensures:
+- All dependencies are explicit
+- Classes are testable
+- No null surprises at runtime
+</Callout>
+
+---
+
+## Dependency Order
+
+Axiom instantiates components in this order:
+
+<Steps>
+  <Step>
+    ### Repositories
+    Data access layer (no dependencies on other components)
+  </Step>
+  <Step>
+    ### Services
+    Business logic (may depend on repositories)
+  </Step>
+  <Step>
+    ### Middleware
+    Cross-cutting concerns (may depend on services)
+  </Step>
+  <Step>
+    ### Routes
+    HTTP endpoints (depend on services)
+  </Step>
+</Steps>
+
+This ensures dependencies are always available when needed.
+
+---
+
+## Project Structure
+
+<Tabs items={['Flat', 'By Feature', 'By Layer']}>
+  <Tab value="Flat">
+```
+src/main/java/
+├── Application.java
+├── User.java
+├── UserRoutes.java
+├── UserService.java
+├── UserRepository.java
+└── LoggingMiddleware.java
+```
+  </Tab>
+  <Tab value="By Feature">
+```
+src/main/java/com/example/
+├── Application.java
+├── user/
+│   ├── User.java
+│   ├── UserRoutes.java
+│   ├── UserService.java
+│   └── UserRepository.java
+├── product/
+│   ├── Product.java
+│   ├── ProductRoutes.java
+│   ├── ProductService.java
+│   └── ProductRepository.java
+└── shared/
+    └── LoggingMiddleware.java
+```
+  </Tab>
+  <Tab value="By Layer">
+```
+src/main/java/com/example/
+├── Application.java
+├── domain/
+│   ├── User.java
+│   └── Product.java
+├── repository/
+│   ├── UserRepository.java
+│   └── ProductRepository.java
+├── service/
+│   ├── UserService.java
+│   └── ProductService.java
+├── routes/
+│   ├── UserRoutes.java
+│   └── ProductRoutes.java
+└── middleware/
+    └── LoggingMiddleware.java
+```
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+Axiom scans **all subpackages** of your application class. Structure however you prefer.
+</Callout>
+
+---
+
+## Complete Example
+
+<Accordions>
+  <Accordion title="Application.java">
+```java
+import io.axiom.di.AxiomApplication;
+
+public class Application {
+    public static void main(String[] args) {
+        AxiomApplication.start(Application.class, 8080);
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="User.java (Domain)">
+```java
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public record User(long id, String name, String email) {
+
+    public static User fromRow(ResultSet rs) throws SQLException {
+        return new User(
+            rs.getLong("id"),
+            rs.getString("name"),
+            rs.getString("email")
+        );
+    }
+
+    public UserResponse toResponse() {
+        return new UserResponse(id, name, email);
+    }
+}
+
+public record UserResponse(long id, String name, String email) {}
+
+public record CreateUserRequest(String name, String email) {}
+```
+  </Accordion>
+
+  <Accordion title="UserRepository.java">
+```java
+import io.axiom.di.Repository;
+import io.axiom.persistence.tx.Transaction;
+import io.axiom.persistence.jdbc.Jdbc;
+import java.util.*;
+
+@Repository
+public class UserRepository {
+
+    public List<User> findAll() {
+        return Transaction.execute(() ->
+            Jdbc.query("SELECT * FROM users", User::fromRow)
+        );
+    }
+
+    public Optional<User> findById(long id) {
+        return Transaction.execute(() ->
+            Jdbc.queryOne("SELECT * FROM users WHERE id = ?", User::fromRow, id)
+        );
+    }
+
+    public User create(String name, String email) {
+        return Transaction.execute(() -> {
+            long id = Jdbc.insertAndReturnKey(
+                "INSERT INTO users (name, email) VALUES (?, ?)",
+                name, email
+            );
+            return new User(id, name, email);
+        });
+    }
+
+    public boolean existsByEmail(String email) {
+        return Transaction.execute(() ->
+            Jdbc.queryCount("SELECT COUNT(*) FROM users WHERE email = ?", email) > 0
+        );
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="UserService.java">
+```java
+import io.axiom.di.Service;
+import jakarta.inject.Inject;
+import java.util.*;
+
+@Service
+public class UserService {
+
+    private final UserRepository userRepository;
+
+    @Inject
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    public List<User> findAll() {
+        return userRepository.findAll();
+    }
+
+    public Optional<User> findById(long id) {
+        return userRepository.findById(id);
+    }
+
+    public User create(CreateUserRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("Email already exists");
+        }
+        return userRepository.create(request.name(), request.email());
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="UserRoutes.java">
+```java
+import io.axiom.di.Routes;
+import io.axiom.core.routing.Router;
+import jakarta.inject.Inject;
+import java.util.Map;
+
+@Routes("/users")
+public class UserRoutes {
+
+    private final UserService userService;
+
+    @Inject
+    public UserRoutes(UserService userService) {
+        this.userService = userService;
+    }
+
+    public Router router() {
+        var r = new Router();
+
+        r.get("/", ctx -> {
+            ctx.json(userService.findAll().stream()
+                .map(User::toResponse)
+                .toList());
+        });
+
+        r.get("/:id", ctx -> {
+            long id = Long.parseLong(ctx.paramOrThrow("id"));
+            userService.findById(id)
+                .map(User::toResponse)
+                .ifPresentOrElse(
+                    ctx::json,
+                    ctx::notFound
+                );
+        });
+
+        r.post("/", ctx -> {
+            var req = ctx.body(CreateUserRequest.class);
+            var user = userService.create(req);
+            ctx.status(201);
+            ctx.json(user.toResponse());
+        });
+
+        return r;
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="LoggingMiddleware.java">
+```java
+import io.axiom.di.Middleware;
+import io.axiom.core.middleware.MiddlewareHandler;
+import io.axiom.core.context.Context;
+import io.axiom.core.middleware.Next;
+
+@Middleware(order = 1)
+public class LoggingMiddleware implements MiddlewareHandler {
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        long start = System.nanoTime();
+        System.out.printf("[%s] --> %s %s%n",
+            java.time.Instant.now(), ctx.method(), ctx.path());
+
+        try {
+            next.run();
+        } finally {
+            long ms = (System.nanoTime() - start) / 1_000_000;
+            System.out.printf("[%s] <-- %d (%dms)%n",
+                java.time.Instant.now(), 200, ms);
+        }
+    }
+}
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## Manual vs Auto-Discovery
+
+Choose the approach that fits your needs:
+
+<Tabs items={['Auto-Discovery (DI)', 'Manual Wiring']}>
+  <Tab value="Auto-Discovery (DI)">
+**Best for:** Most applications, rapid development
+
+```java
+// One line - framework handles everything
+AxiomApplication.start(Application.class, 8080);
+```
+
+| | |
+|---|---|
+| ✅ Zero boilerplate | ✅ Automatic dependency resolution |
+| ✅ Clean project structure | ⚠️ Classpath scanning at startup |
+  </Tab>
+  <Tab value="Manual Wiring">
+**Best for:** Libraries, embedded use, maximum control
+
+```java
+// Explicit construction
+var userRepo = new UserRepository();
+var userService = new UserService(userRepo);
+var userHandler = new UserHandler(userService);
+
+Router router = new Router();
+router.get("/users", userHandler::list);
+router.post("/users", userHandler::create);
+
+App app = Axiom.create();
+app.route(router);
+app.listen(8080);
+```
+
+| | |
+|---|---|
+| ✅ 100% explicit | ✅ No reflection |
+| ✅ Instant startup | ⚠️ More boilerplate |
+  </Tab>
+</Tabs>
+
+---
+
+## Startup Output
+
+When you run `AxiomApplication.start()`:
+
+```
+INFO  Axiom starting - scanning package: com.example
+INFO  Discovered: 2 repositories, 3 services, 4 routes, 1 middleware
+DEBUG Created: UserRepository
+DEBUG Created: ProductRepository
+DEBUG Created: UserService
+DEBUG Created: ProductService
+DEBUG Created: AuthService
+DEBUG Created: LoggingMiddleware
+DEBUG Created: UserRoutes
+DEBUG Created: ProductRoutes
+DEBUG Created: AuthRoutes
+DEBUG Created: HealthRoutes
+INFO  Mounted: /health -> HealthRoutes
+INFO  Mounted: /auth -> AuthRoutes
+INFO  Mounted: /users -> UserRoutes
+INFO  Mounted: /products -> ProductRoutes
+INFO  🚀 Axiom running on http://0.0.0.0:8080
+```
+
+---
+
+## Testing with DI
+
+Test your components in isolation:
+
+```java
+class UserServiceTest {
+
+    @Test
+    void shouldCreateUser() {
+        // Arrange - mock repository
+        var mockRepo = new UserRepository() {
+            @Override
+            public User create(String name, String email) {
+                return new User(1L, name, email);
+            }
+
+            @Override
+            public boolean existsByEmail(String email) {
+                return false;
+            }
+        };
+
+        var service = new UserService(mockRepo);
+
+        // Act
+        var user = service.create(new CreateUserRequest("John", "john@example.com"));
+
+        // Assert
+        assertEquals("John", user.name());
+        assertEquals("john@example.com", user.email());
+    }
+}
+```
+
+<Callout type="info">
+Because Axiom uses **constructor injection**, every component is easily testable with mocks.
+</Callout>

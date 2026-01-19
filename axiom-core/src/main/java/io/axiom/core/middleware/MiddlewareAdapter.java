@@ -6,7 +6,7 @@ import io.axiom.core.context.*;
 import io.axiom.core.handler.*;
 
 /**
- * Adapts public middleware interfaces to internal {@link Middleware}.
+ * Adapts public middleware interfaces to internal {@link MiddlewareFunction}.
  *
  * <p>
  * This adapter bridges the user-friendly middleware APIs to the internal
@@ -52,7 +52,7 @@ public final class MiddlewareAdapter {
      * @return internal middleware function
      * @throws NullPointerException if handler is null
      */
-    public static Middleware adapt(final MiddlewareHandler handler) {
+    public static MiddlewareFunction adapt(final MiddlewareHandler handler) {
         Objects.requireNonNull(handler, "MiddlewareHandler cannot be null");
 
         return nextHandler -> context -> {
@@ -72,7 +72,7 @@ public final class MiddlewareAdapter {
      * @return internal middleware function
      * @throws NullPointerException if middleware is null
      */
-    public static Middleware adapt(final SimpleMiddleware middleware) {
+    public static MiddlewareFunction adapt(final SimpleMiddleware middleware) {
         Objects.requireNonNull(middleware, "SimpleMiddleware cannot be null");
 
         return nextHandler -> context -> {
@@ -98,7 +98,7 @@ public final class MiddlewareAdapter {
      * @return middleware that runs handler then continues
      * @throws NullPointerException if beforeHandler is null
      */
-    public static Middleware before(final Handler beforeHandler) {
+    public static MiddlewareFunction before(final Handler beforeHandler) {
         Objects.requireNonNull(beforeHandler, "Before handler cannot be null");
 
         return nextHandler -> context -> {
@@ -118,7 +118,7 @@ public final class MiddlewareAdapter {
      * @return middleware that continues then runs handler
      * @throws NullPointerException if afterHandler is null
      */
-    public static Middleware after(final Handler afterHandler) {
+    public static MiddlewareFunction after(final Handler afterHandler) {
         Objects.requireNonNull(afterHandler, "After handler cannot be null");
 
         return nextHandler -> context -> {
@@ -138,7 +138,7 @@ public final class MiddlewareAdapter {
      * @return middleware that continues then runs handler in finally block
      * @throws NullPointerException if finallyHandler is null
      */
-    public static Middleware afterAlways(final Handler finallyHandler) {
+    public static MiddlewareFunction afterAlways(final Handler finallyHandler) {
         Objects.requireNonNull(finallyHandler, "Finally handler cannot be null");
 
         return nextHandler -> context -> {
@@ -158,7 +158,7 @@ public final class MiddlewareAdapter {
      * @return middleware that conditionally executes
      * @throws NullPointerException if any argument is null
      */
-    public static Middleware forPath(final String pathPrefix, final Middleware middleware) {
+    public static MiddlewareFunction forPath(final String pathPrefix, final MiddlewareFunction middleware) {
         Objects.requireNonNull(pathPrefix, "Path prefix cannot be null");
         Objects.requireNonNull(middleware, "Middleware cannot be null");
 

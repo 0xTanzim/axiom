@@ -6,3 +6,161 @@
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
+
+/* Premium Dark Mode Theme */
+.dark {
+  /* Deep, rich background colors */
+  --fd-background: 8 8 12;
+  --fd-background-dark: 4 4 8;
+  --fd-muted: 18 18 24;
+  --fd-muted-foreground: 140 140 160;
+
+  /* Refined accent - subtle purple-blue gradient feel */
+  --fd-primary: 139 92 246;
+  --fd-primary-foreground: 255 255 255;
+
+  /* Card and surface colors with subtle elevation */
+  --fd-card: 14 14 20;
+  --fd-card-foreground: 240 240 250;
+
+  /* Border colors - subtle but visible */
+  --fd-border: 38 38 52;
+
+  /* Better text contrast */
+  --fd-foreground: 250 250 255;
+  --fd-secondary-foreground: 200 200 220;
+
+  /* Code block styling */
+  --fd-code-background: 12 12 18;
+  --fd-code-foreground: 200 200 220;
+
+  /* Sidebar refinements */
+  --fd-sidebar-background: 10 10 16;
+  --fd-sidebar-foreground: 180 180 200;
+}
+
+/* Smooth transitions for theme switching */
+html {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Enhanced scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgb(14 14 20);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgb(50 50 70);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgb(70 70 100);
+}
+
+/* Premium code blocks with subtle glow */
+.dark pre {
+  background: linear-gradient(135deg, rgb(12 12 18) 0%, rgb(16 16 24) 100%) !important;
+  border: 1px solid rgb(38 38 52) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Subtle hover effect on cards */
+.dark .fd-card:hover,
+.dark [class*="card"]:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
+}
+
+/* Enhanced sidebar links */
+.dark [class*="sidebar"] a:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* Active nav item glow */
+.dark [class*="sidebar"] [aria-current="page"],
+.dark [class*="sidebar"] [data-active="true"] {
+  background: rgba(139, 92, 246, 0.15);
+  border-left: 2px solid rgb(139 92 246);
+}
+
+/* Callout enhancements */
+.dark [class*="callout"] {
+  background: rgba(139, 92, 246, 0.08);
+  border-left: 3px solid rgb(139 92 246);
+}
+
+/* Accordion styling */
+.dark [class*="accordion"] {
+  border-color: rgb(38 38 52);
+}
+
+.dark [class*="accordion"] button:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* Tab styling */
+.dark [role="tablist"] button[aria-selected="true"] {
+  border-bottom-color: rgb(139 92 246);
+  color: rgb(200 180 255);
+}
+
+/* Table styling */
+.dark table {
+  border-color: rgb(38 38 52);
+}
+
+.dark th {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.dark tr:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+/* Link styling */
+.dark a:not([class]) {
+  color: rgb(167 139 250);
+}
+
+.dark a:not([class]):hover {
+  color: rgb(196 181 253);
+}
+
+/* Inline code */
+.dark :not(pre) > code {
+  background: rgba(139, 92, 246, 0.15);
+  color: rgb(200 180 255);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+/* Search input */
+.dark input[type="search"],
+.dark [class*="search"] input {
+  background: rgb(14 14 20);
+  border-color: rgb(38 38 52);
+}
+
+.dark input[type="search"]:focus,
+.dark [class*="search"] input:focus {
+  border-color: rgb(139 92 246);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+/* Button refinements */
+.dark button:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* Gradient text for headings (optional premium feel) */
+.dark h1 {
+  background: linear-gradient(135deg, rgb(255 255 255) 0%, rgb(180 180 220) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

@@ -27,7 +27,7 @@ class SimpleMiddlewareTest {
             };
 
             final Handler nextHandler = ctx -> nextCalled.set(true);
-            final Middleware adapted = MiddlewareAdapter.adapt(middleware);
+            final MiddlewareFunction adapted = MiddlewareAdapter.adapt(middleware);
             final Handler composed = adapted.apply(nextHandler);
 
             composed.handle(SimpleMiddlewareTest.this.createContext());
@@ -45,7 +45,7 @@ class SimpleMiddlewareTest {
             };
 
             final Handler nextHandler = ctx -> nextCalled.set(true);
-            final Middleware adapted = MiddlewareAdapter.adapt(middleware);
+            final MiddlewareFunction adapted = MiddlewareAdapter.adapt(middleware);
             final Handler composed = adapted.apply(nextHandler);
 
             composed.handle(SimpleMiddlewareTest.this.createContext());
@@ -65,7 +65,7 @@ class SimpleMiddlewareTest {
             };
 
             final Handler nextHandler = ctx -> order.add("handler");
-            final Middleware adapted = MiddlewareAdapter.adapt(middleware);
+            final MiddlewareFunction adapted = MiddlewareAdapter.adapt(middleware);
             final Handler composed = adapted.apply(nextHandler);
 
             composed.handle(SimpleMiddlewareTest.this.createContext());
@@ -89,7 +89,7 @@ class SimpleMiddlewareTest {
                 throw new RuntimeException("Handler error");
             };
 
-            final Middleware adapted = MiddlewareAdapter.adapt(middleware);
+            final MiddlewareFunction adapted = MiddlewareAdapter.adapt(middleware);
             final Handler composed = adapted.apply(nextHandler);
 
             Assertions.assertThatThrownBy(() -> composed.handle(SimpleMiddlewareTest.this.createContext()))
@@ -114,7 +114,7 @@ class SimpleMiddlewareTest {
                 throw new RuntimeException("Caught error");
             };
 
-            final Middleware adapted = MiddlewareAdapter.adapt(middleware);
+            final MiddlewareFunction adapted = MiddlewareAdapter.adapt(middleware);
             final Handler composed = adapted.apply(nextHandler);
 
             composed.handle(SimpleMiddlewareTest.this.createContext());
@@ -149,7 +149,7 @@ class SimpleMiddlewareTest {
         void forPathOnlyAppliesToMatchingPaths() throws Exception {
             final AtomicInteger middlewareCount = new AtomicInteger(0);
 
-            final Middleware conditionalMiddleware = MiddlewareAdapter.forPath("/api",
+            final MiddlewareFunction conditionalMiddleware = MiddlewareAdapter.forPath("/api",
                     next -> ctx -> {
                         middlewareCount.incrementAndGet();
                         next.handle(ctx);
@@ -173,7 +173,7 @@ class SimpleMiddlewareTest {
         void afterAlwaysRunsEvenOnException() throws Exception {
             final AtomicBoolean afterRan = new AtomicBoolean(false);
 
-            final Middleware afterAlways = MiddlewareAdapter.afterAlways(ctx -> afterRan.set(true));
+            final MiddlewareFunction afterAlways = MiddlewareAdapter.afterAlways(ctx -> afterRan.set(true));
 
             final Handler failingHandler = ctx -> {
                 throw new RuntimeException("Fail");

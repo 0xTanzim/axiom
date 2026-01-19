@@ -1,6 +1,6 @@
 package io.axiom.core.middleware;
 
-import io.axiom.core.handler.Handler;
+import io.axiom.core.handler.*;
 
 /**
  * Internal middleware representation using pure function composition.
@@ -15,10 +15,10 @@ import io.axiom.core.handler.Handler;
  * {@link MiddlewareHandler} which provides a friendlier DX.
  *
  * <h2>Composition Model</h2>
- * 
+ *
  * <pre>{@code
  * // Each middleware wraps the next handler
- * Middleware logging = next -> c -> {
+ * MiddlewareFunction logging = next -> c -> {
  *     System.out.println("Before: " + c.path());
  *     next.handle(c);
  *     System.out.println("After: " + c.path());
@@ -31,10 +31,10 @@ import io.axiom.core.handler.Handler;
  * <h2>Pipeline Construction</h2>
  * <p>
  * At application startup, middleware is composed into a single handler:
- * 
+ *
  * <pre>{@code
  * Handler final = handler;
- * for (Middleware m : reverse(middlewares)) {
+ * for (MiddlewareFunction m : reverse(middlewares)) {
  *     final = m.apply(final);
  * }
  * }</pre>
@@ -44,7 +44,7 @@ import io.axiom.core.handler.Handler;
  * @since 0.1.0
  */
 @FunctionalInterface
-public interface Middleware {
+public interface MiddlewareFunction {
 
     /**
      * Wraps a handler with middleware logic.
@@ -63,7 +63,7 @@ public interface Middleware {
      * @param other the middleware to apply after this one
      * @return composed middleware
      */
-    default Middleware andThen(Middleware other) {
+    default MiddlewareFunction andThen(final MiddlewareFunction other) {
         return next -> this.apply(other.apply(next));
     }
 
@@ -72,7 +72,7 @@ public interface Middleware {
      *
      * @return identity middleware
      */
-    static Middleware identity() {
+    static MiddlewareFunction identity() {
         return next -> next;
     }
 
@@ -85,9 +85,9 @@ public interface Middleware {
      * @param middlewares the middleware to compose
      * @return single composed middleware
      */
-    static Middleware compose(Middleware... middlewares) {
-        Middleware result = identity();
-        for (Middleware m : middlewares) {
+    static MiddlewareFunction compose(final MiddlewareFunction... middlewares) {
+        MiddlewareFunction result = MiddlewareFunction.identity();
+        for (final MiddlewareFunction m : middlewares) {
             result = result.andThen(m);
         }
         return result;

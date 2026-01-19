@@ -1,245 +1,26 @@
 # Axiom
 
-> DX-first, functional Java web framework for modern JVM development.
+> **DX-first, functional Java web framework for modern JVM development.**
 
-[![Java 21+](https://img.shields.io/badge/Java-21%2B-blue.svg)](https://openjdk.org/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Architecture%20Phase-orange.svg)](#status)
+[![Java 25](https://img.shields.io/badge/Java-25-blue.svg)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.0xtanzim/axiom.svg)](https://search.maven.org/artifact/io.github.0xtanzim/axiom)
 
 ---
 
-## Vision
+## What is Axiom?
 
-Axiom is a **developer experience first** web framework for Java 21+.
+Axiom is a **developer experience first** web framework for Java 25+.
 
 It brings the simplicity of Express/Hono to the JVM — without reflection,
-annotations, or magic. Just code.
+classpath scanning, or magic. Just code.
 
 ```java
-Router router = new Router();
+import io.axiom.core.app.Axiom;
+import io.axiom.core.routing.Router;
+import java.util.Map;
 
-router.get("/health", c -> c.text("OK"));
-
-router.get("/users/:id", c -> {
-    User user = userService.find(c.param("id"));
-    c.json(user);
-});
-
-router.post("/users", c -> {
-    UserCreate req = c.body(UserCreate.class);
-    User created = userService.create(req);
-    c.status(201);
-    c.json(created);
-});
-
-App app = new App();
-app.use(loggingMiddleware);
-app.route(router);
-app.listen(8080);
-```
-
-**No annotations. No reflection. No magic.**
-
----
-
-## Core Principles
-
-| Principle | Description |
-|-----------|-------------|
-| **DX First** | Developer experience above all else |
-| **Explicit** | No hidden behavior, clear execution flow |
-| **Functional** | Composition over inheritance |
-| **Fast** | Zero reflection in hot paths |
-| **Modern** | Java 21+, virtual threads, sealed types |
-| **Flexible** | Runtime adapter architecture |
-
----
-
-## Status
-
-🚧 **Architecture Phase** — Not ready for use.
-
-We're designing the framework before writing code. All design decisions
-are documented in RFCs under `/draft`.
-
-### Roadmap
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| 0. Foundation | ✅ In Progress | RFCs, architecture docs |
-| 1. Core Engine | ⏳ Pending | Handler, Router, Middleware |
-| 2. HTTP Layer | ⏳ Pending | HTTP types, Context |
-| 3. JDK Runtime | ⏳ Pending | First working server |
-| 4. Testing | ⏳ Pending | Test utilities |
-| 5. JSON Codecs | ⏳ Pending | Jackson, Gson |
-| 6. Documentation | ⏳ Pending | User guides |
-| 7. Performance | ⏳ Pending | Benchmarks |
-| 8. Alpha Release | ⏳ Pending | 0.1.0-alpha |
-
-See [ROADMAP.md](docs/plan/ROADMAP.md) for details.
-
----
-
-## Why Another Framework?
-
-Java web frameworks today are either:
-
-1. **Heavy** — Spring Boot with 50MB of dependencies
-2. **Magical** — Annotation scanning, reflection, hidden lifecycles
-3. **Complex** — Reactive streams leaking into user code
-4. **Outdated** — Not leveraging Java 21+ features
-
-Axiom is different:
-
-| | Spring | Javalin | Vert.x | **Axiom** |
-|---|--------|---------|--------|-----------|
-| Annotations | Heavy | Minimal | None | **None** |
-| Reflection | Heavy | Some | Minimal | **None** |
-| Virtual Threads | Optional | Optional | No | **Default** |
-| Core Size | ~50MB | ~1MB | ~5MB | **<100KB** |
-| Learning Curve | High | Low | Medium | **Low** |
-
----
-
-## Design
-
-### Architecture
-
-```
-┌────────────────────────────────────────────────────┐
-│                    Your App                         │
-└────────────────────────┬───────────────────────────┘
-                         │
-┌────────────────────────┴───────────────────────────┐
-│              Runtime Adapter (choose one)           │
-│    axiom-runtime-jdk │ axiom-runtime-netty │ ...   │
-└────────────────────────┬───────────────────────────┘
-                         │
-┌────────────────────────┴───────────────────────────┐
-│                    axiom-http                       │
-│            HTTP types, body parsing                 │
-└────────────────────────┬───────────────────────────┘
-                         │
-┌────────────────────────┴───────────────────────────┐
-│                    axiom-core                       │
-│      Handler, Router, Middleware, Lifecycle         │
-└────────────────────────────────────────────────────┘
-```
-
-### Key Abstractions
-
-**Handler** — The fundamental unit of work:
-```java
-@FunctionalInterface
-public interface Handler {
-    void handle(Context c) throws Exception;
-}
-```
-
-**Context** — Request + Response in one place:
-```java
-// Request (immutable)
-c.method()           // "GET"
-c.path()             // "/users/123"
-c.param("id")        // "123"
-c.query("page")      // "1"
-c.body(User.class)   // parsed body
-
-// Response (mutable)
-c.status(201)
-c.header("X-Custom", "value")
-c.json(response)
-```
-
-**Router** — Express-style routing:
-```java
-Router router = new Router();
-router.get("/users", listHandler);
-router.get("/users/:id", getHandler);
-router.post("/users", createHandler);
-router.group("/admin", admin -> {
-    admin.get("/stats", statsHandler);
-});
-```
-
-**Middleware** — Onion-style composition:
-```java
-app.use((c, next) -> {
-    long start = System.nanoTime();
-    next.run();
-    long duration = System.nanoTime() - start;
-    System.out.println("Request took: " + duration + "ns");
-});
-```
-
----
-
-## Modules
-
-**What users see:** ONE dependency
-
-```xml
-<dependency>
-    <groupId>io.axiom</groupId>
-    <artifactId>axiom</artifactId>
-    <version>0.1.0</version>
-</dependency>
-```
-
-**What's inside (internal):**
-
-| Module | Purpose |
-|--------|---------|
-| `axiom-core` | Core primitives (zero external deps) |
-| `axiom-config` | Configuration |
-| `axiom-di` | Dependency Injection |
-| `axiom-validation` | Input validation |
-| `axiom-server` | HTTP server |
-| `axiom-persistence` | Database |
-
-> Users don't need to know about internal modules. Just add `axiom`.
-
----
-
-## Requirements
-
-- **Java 21** minimum (virtual threads)
-- **Java 25 LTS** recommended (full feature support)
-- No build tool requirements (works with Maven, Gradle, any)
-
----
-
-## Installation
-
-> ⚠️ Not published to Maven Central yet — in development.
-
-**Maven:**
-```xml
-<dependency>
-    <groupId>io.axiom</groupId>
-    <artifactId>axiom</artifactId>
-    <version>0.1.0</version>
-</dependency>
-```
-
-**Gradle:**
-```kotlin
-implementation("io.axiom:axiom:0.1.0")
-```
-
-That's it. ONE dependency. Full framework.
-
----
-
-## Quick Start
-
-> ⚠️ Example only — not implemented yet.
-
-```java
-import io.axiom.core.*;
-import io.axiom.runtime.jdk.*;
-
-public class Main {
+public class App {
     public static void main(String[] args) {
         Router router = new Router();
 
@@ -250,113 +31,314 @@ public class Main {
             c.json(Map.of("id", id, "name", "User " + id));
         });
 
-        App app = new JdkApp();
-        app.route(router);
-        app.listen(8080);
+        router.post("/users", c -> {
+            User user = c.body(User.class);
+            c.status(201);
+            c.json(user);
+        });
 
-        System.out.println("Server running at http://localhost:8080");
+        Axiom.start(router, 8080);
+    }
+}
+
+record User(String name, String email) {}
+```
+
+**No annotations. No reflection. No magic.**
+
+---
+
+## Quick Start
+
+### 1. Add Dependency
+
+**Maven:**
+```xml
+<dependency>
+    <groupId>io.github.0xtanzim</groupId>
+    <artifactId>axiom</artifactId>
+    <version>0.1.0</version>
+</dependency>
+
+<properties>
+    <maven.compiler.source>25</maven.compiler.source>
+    <maven.compiler.target>25</maven.compiler.target>
+</properties>
+```
+
+**Gradle:**
+```kotlin
+implementation("io.github.0xtanzim:axiom:0.1.0")
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 ```
 
----
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [Architecture](docs/architecture/ARCHITECTURE.md) | Technical design |
-| [Modules](docs/architecture/MODULES.md) | Project structure |
-| [Decisions](docs/architecture/DECISIONS.md) | ADRs |
-| [Roadmap](docs/plan/ROADMAP.md) | Implementation plan |
-| [Edge Cases](docs/architecture/EDGE_CASES.md) | Safety considerations |
-
-### RFCs
-
-| RFC | Title | Status |
-|-----|-------|--------|
-| [RFC-0001](draft/RFC_0001.md) | Core Framework Design | Draft |
-| [RFC-0002](draft/RFC_0002.md) | Routing & Composition | Draft |
-| [RFC-0003](draft/RFC_0003.md) | Routing Matcher Algorithm | Draft |
-| [RFC-0004](draft/RFC_0004.md) | Middleware Pipeline | Draft |
-| [RFC-0005](draft/RFC_0005.md) | DX Philosophy | Draft |
-| [RFC-0006](draft/RFC_0006.md) | Build Tool Strategy | Draft |
-
----
-
-## Comparison
-
-### vs Spring Boot
+### 2. Create Your App
 
 ```java
-// Spring Boot
-@RestController
-@RequestMapping("/users")
-public class UserController {
-    @GetMapping("/{id}")
-    public ResponseEntity<User> getUser(@PathVariable String id) {
-        return ResponseEntity.ok(userService.find(id));
+// src/main/java/App.java
+import io.axiom.core.app.Axiom;
+import io.axiom.core.routing.Router;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/", c -> c.text("Hello, Axiom!"));
+
+        Axiom.start(router, 8080);
+        System.out.println("🚀 Server running at http://localhost:8080");
     }
 }
-
-// Axiom
-router.get("/users/:id", c -> c.json(userService.find(c.param("id"))));
 ```
 
-### vs Javalin
+### 3. Run the Server
+
+**Maven:**
+```bash
+mvn compile exec:java -Dexec.mainClass="App"
+```
+
+**Gradle:**
+```bash
+./gradlew run
+```
+
+**Direct Java:**
+```bash
+javac -cp axiom.jar App.java
+java -cp .:axiom.jar App
+```
+
+### 4. Test It
+
+```bash
+curl http://localhost:8080
+# Hello, Axiom!
+```
+
+That's it. Your server is running.
+
+---
+
+## Running the Server
+
+Axiom provides multiple ways to start your server:
+
+### Simple Start (Recommended)
 
 ```java
-// Javalin
-app.get("/users/{id}", ctx -> {
-    ctx.json(userService.find(ctx.pathParam("id")));
+// One-liner: router + port → running server
+Axiom.start(router, 8080);
+```
+
+### With Host Binding
+
+```java
+// Bind to specific host
+Axiom.start(router, "127.0.0.1", 8080);  // localhost only
+Axiom.start(router, "0.0.0.0", 8080);    // all interfaces
+```
+
+### Full Control
+
+```java
+import io.axiom.core.app.*;
+import io.axiom.core.routing.Router;
+import java.util.Map;
+
+App app = Axiom.create();
+
+// Add middleware
+app.use((ctx, next) -> {
+    System.out.println(ctx.method() + " " + ctx.path());
+    next.run();
 });
 
-// Axiom (nearly identical — that's the point!)
-router.get("/users/:id", c -> c.json(userService.find(c.param("id"))));
+// Lifecycle hooks
+app.onStart(() -> System.out.println("Connecting to database..."));
+app.onReady(() -> System.out.println("🚀 Server ready on port " + app.port()));
+app.onShutdown(() -> System.out.println("Cleaning up..."));
+
+// Error handling
+app.onError((ctx, e) -> {
+    ctx.status(500);
+    ctx.json(Map.of("error", e.getMessage()));
+});
+
+// Routes
+app.route(router);
+
+// Start (blocks until shutdown)
+app.listen(8080);
+```
+
+### Server Configuration
+
+```java
+import io.axiom.core.server.ServerConfig;
+import java.time.Duration;
+
+App app = Axiom.create();
+app.route(router);
+
+// Custom configuration
+app.listen(ServerConfig.builder()
+    .host("0.0.0.0")
+    .port(8080)
+    .readTimeout(Duration.ofSeconds(30))
+    .writeTimeout(Duration.ofSeconds(30))
+    .shutdownTimeout(Duration.ofSeconds(30))
+    .virtualThreads(true)  // default: true
+    .build());
+```
+
+### Using Config File
+
+```properties
+# application.properties
+server.host=0.0.0.0
+server.port=8080
+```
+
+```java
+import io.axiom.config.Config;
+
+Config.ServerConfig server = Config.server();
+app.listen(server.host(), server.port());
 ```
 
 ---
 
-## Philosophy
+## Core Concepts
 
-> "Use what fits your brain."
+### Routing
 
-Axiom supports multiple styles without forcing one:
-
-**Middleware style (Express/Hono):**
 ```java
-app.use((c, next) -> {
-    if (!isAuthenticated(c)) {
-        c.status(401);
-        c.text("Unauthorized");
+Router router = new Router();
+
+// Methods
+router.get("/users", c -> { /* ... */ });
+router.post("/users", c -> { /* ... */ });
+router.put("/users/:id", c -> { /* ... */ });
+router.delete("/users/:id", c -> { /* ... */ });
+
+// Path parameters
+router.get("/users/:id", c -> {
+    String id = c.param("id");
+});
+
+// Query parameters
+router.get("/search", c -> {
+    String q = c.query("q");
+    int page = c.query("page", 1);
+});
+
+// Route groups
+router.group("/api", api -> {
+    api.get("/users", userHandler);
+    api.get("/posts", postHandler);
+});
+```
+
+### Context
+
+```java
+router.post("/users", c -> {
+    // Request
+    String method = c.method();        // "POST"
+    String path = c.path();            // "/users"
+    String id = c.param("id");         // path param
+    String q = c.query("q");           // query param
+    String auth = c.header("Authorization");
+    User body = c.body(User.class);    // JSON body
+
+    // Response
+    c.status(201);
+    c.header("X-Custom", "value");
+    c.json(user);                      // JSON response
+    c.text("OK");                      // text response
+    c.html("<h1>Hi</h1>");             // HTML response
+});
+```
+
+### Middleware
+
+```java
+// Logging middleware
+app.use((ctx, next) -> {
+    long start = System.nanoTime();
+    next.run();
+    long ms = (System.nanoTime() - start) / 1_000_000;
+    System.out.println(ctx.method() + " " + ctx.path() + " - " + ms + "ms");
+});
+
+// Auth middleware
+app.use((ctx, next) -> {
+    String token = ctx.header("Authorization");
+    if (token == null) {
+        ctx.status(401);
+        ctx.json(Map.of("error", "Unauthorized"));
         return;
     }
     next.run();
 });
 ```
 
-**Hook style (Javalin):**
-```java
-app.before(c -> {
-    if (!isAuthenticated(c)) {
-        c.status(401);
-        c.text("Unauthorized");
-    }
-});
+---
+
+## Requirements
+
+- **Java 25** (LTS) — required for virtual threads and modern features
+
+---
+
+## Why Axiom?
+
+| | Spring | Javalin | **Axiom** |
+|---|--------|---------|-----------|
+| Annotations | Heavy | Minimal | **None** |
+| Reflection | Heavy | Some | **None** |
+| Virtual Threads | Optional | Optional | **Default** |
+| Core Size | ~50MB | ~1MB | **<100KB** |
+| Learning Curve | High | Low | **Low** |
+
+---
+
+## Documentation
+
+📚 **Full documentation:** https://0xtanzim.github.io/axiom/
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](https://0xtanzim.github.io/axiom/docs/getting-started) | Installation and first app |
+| [Routing](https://0xtanzim.github.io/axiom/docs/routing) | Routes, groups, parameters |
+| [Middleware](https://0xtanzim.github.io/axiom/docs/middleware) | Request/response pipeline |
+| [Context](https://0xtanzim.github.io/axiom/docs/context) | Request and response API |
+| [Configuration](https://0xtanzim.github.io/axiom/docs/config) | Config files, env vars |
+| [Lifecycle](https://0xtanzim.github.io/axiom/docs/lifecycle) | Startup, shutdown hooks |
+| [Persistence](https://0xtanzim.github.io/axiom/docs/persistence) | Database integration |
+
+---
+
+## Project Structure
+
+```
+axiom/
+├── axiom-core/                 # Core framework (routing, config, DI, server)
+├── axiom-persistence/          # Database integration
+├── axiom-persistence-processor/# Compile-time annotation processor
+└── axiom-framework/            # Published as "axiom" (THE ONE dependency)
 ```
 
-Both are first-class. Both work. Choose what fits your brain.
+Users add **one dependency**: `io.github.0xtanzim:axiom`
 
 ---
 
 ## Contributing
-
-Axiom is in early design phase. Contributions welcome:
-
-1. **Review RFCs** — Give feedback on design
-2. **Propose RFCs** — Suggest new features
-3. **Documentation** — Help improve docs
-4. **Future: Code** — Once design is stable
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -364,17 +346,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Apache License 2.0 — See [LICENSE](LICENSE) for details.
+MIT License — See [LICENSE](LICENSE) for details.
 
 ---
 
 ## Acknowledgments
 
 Inspired by:
+- [NextRush](https://github.com/0xTanzim/nextRush) — DX and simplicity
 - [Hono](https://hono.dev) — DX and simplicity
 - [Express](https://expressjs.com) — Middleware model
 - [Javalin](https://javalin.io) — Java simplicity
-- Project Loom — Virtual threads
 
 ---
 

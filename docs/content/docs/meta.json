@@ -4,14 +4,21 @@
   "pages": [
     "index",
     "getting-started",
+    "server",
     "---Core Concepts---",
     "routing",
+    "context",
     "middleware",
-    "---Configuration---",
+    "lifecycle",
+    "di",
+    "---Configuration & Data---",
     "config",
-    "---Database---",
     "persistence",
-    "---Advanced---",
-    "validation"
+    "---Advanced Patterns---",
+    "validation",
+    "error-handling",
+    "auth",
+    "logging",
+    "examples"
   ]
 }

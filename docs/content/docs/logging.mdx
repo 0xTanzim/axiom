@@ -1,0 +1,496 @@
+---
+title: Logging
+description: Request logging, structured logs, and observability patterns
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Logging
+
+Implement request logging and structured logging patterns with Axiom.
+
+## Simple Request Logging
+
+Basic request/response logging middleware:
+
+```java
+app.use((ctx, next) -> {
+    long start = System.nanoTime();
+    System.out.printf("--> %s %s%n", ctx.method(), ctx.path());
+
+    try {
+        next.run();
+    } finally {
+        long durationMs = (System.nanoTime() - start) / 1_000_000;
+        System.out.printf("<-- %s (%dms)%n", ctx.path(), durationMs);
+    }
+});
+```
+
+**Output:**
+```
+--> GET /users
+<-- /users (12ms)
+--> POST /users
+<-- /users (45ms)
+```
+
+---
+
+## Structured Request Logging
+
+Add request ID, client IP, and more context:
+
+```java
+@Middleware(order = 1)
+public class RequestLoggingMiddleware implements MiddlewareHandler {
+
+    private static final Logger log = LoggerFactory.getLogger("HTTP");
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
+        ctx.set("requestId", requestId);
+
+        long startTime = System.nanoTime();
+        String method = ctx.method();
+        String path = ctx.path();
+        String clientIp = extractClientIp(ctx);
+
+        log.info("[{}] --> {} {} (client: {})", requestId, method, path, clientIp);
+
+        try {
+            next.run();
+        } finally {
+            long durationMs = (System.nanoTime() - startTime) / 1_000_000;
+            int status = ctx.status();
+
+            log.info("[{}] <-- {} {} -> {} ({}ms)",
+                requestId, method, path, status, durationMs);
+        }
+    }
+
+    private String extractClientIp(Context ctx) {
+        String xForwardedFor = ctx.header("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return ctx.header("X-Real-IP");
+    }
+}
+```
+
+---
+
+## JSON Structured Logging
+
+Output JSON logs for log aggregation systems (ELK, Datadog, etc.):
+
+<Tabs items={['Middleware', 'Output']}>
+  <Tab value="Middleware">
+```java
+@Middleware(order = 1)
+public class JsonLoggingMiddleware implements MiddlewareHandler {
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        String requestId = UUID.randomUUID().toString();
+        ctx.set("requestId", requestId);
+
+        long startTime = System.nanoTime();
+
+        try {
+            next.run();
+        } finally {
+            long durationMs = (System.nanoTime() - startTime) / 1_000_000;
+
+            Map<String, Object> logEntry = Map.of(
+                "timestamp", Instant.now().toString(),
+                "level", "INFO",
+                "requestId", requestId,
+                "method", ctx.method(),
+                "path", ctx.path(),
+                "status", ctx.status(),
+                "durationMs", durationMs,
+                "userAgent", nullSafe(ctx.header("User-Agent")),
+                "contentLength", nullSafe(ctx.header("Content-Length"))
+            );
+
+            System.out.println(mapper.writeValueAsString(logEntry));
+        }
+    }
+
+    private String nullSafe(String value) {
+        return value != null ? value : "";
+    }
+}
+```
+  </Tab>
+  <Tab value="Output">
+```json
+{
+  "timestamp": "2024-01-15T10:30:00.123Z",
+  "level": "INFO",
+  "requestId": "abc12345-6789-0def",
+  "method": "POST",
+  "path": "/api/users",
+  "status": 201,
+  "durationMs": 45,
+  "userAgent": "Mozilla/5.0...",
+  "contentLength": "128"
+}
+```
+  </Tab>
+</Tabs>
+
+---
+
+## SLF4J Integration
+
+Use SLF4J with MDC for request-scoped context:
+
+<Accordions>
+  <Accordion title="SLF4J Middleware">
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+@Middleware(order = 1)
+public class Slf4jLoggingMiddleware implements MiddlewareHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(
+        Slf4jLoggingMiddleware.class
+    );
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
+
+        // Set MDC context (appears in all log statements)
+        MDC.put("requestId", requestId);
+        MDC.put("method", ctx.method());
+        MDC.put("path", ctx.path());
+
+        try {
+            long start = System.nanoTime();
+
+            log.info("Request started");
+            next.run();
+
+            long durationMs = (System.nanoTime() - start) / 1_000_000;
+            MDC.put("status", String.valueOf(ctx.status()));
+            MDC.put("durationMs", String.valueOf(durationMs));
+
+            log.info("Request completed");
+
+        } catch (Exception e) {
+            log.error("Request failed", e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="logback.xml">
+```xml
+<configuration>
+    <!-- Console with pattern -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{ISO8601} [%X{requestId}] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON for production -->
+    <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>method</includeMdcKeyName>
+            <includeMdcKeyName>path</includeMdcKeyName>
+            <includeMdcKeyName>status</includeMdcKeyName>
+            <includeMdcKeyName>durationMs</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>
+```
+  </Accordion>
+
+  <Accordion title="Using MDC in Handlers">
+```java
+router.post("/users", ctx -> {
+    String requestId = MDC.get("requestId");
+
+    log.info("Creating user");  // Includes requestId automatically
+
+    User user = userService.create(request);
+
+    log.info("User created: {}", user.id());
+
+    ctx.json(user);
+});
+
+// Output:
+// 2024-01-15 10:30:00 [abc12345] INFO  UserRoutes - Creating user
+// 2024-01-15 10:30:00 [abc12345] INFO  UserRoutes - User created: 123
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## Error Logging
+
+Log errors with context for debugging:
+
+```java
+app.onError((ctx, error) -> {
+    String errorId = UUID.randomUUID().toString().substring(0, 8);
+    String requestId = ctx.get("requestId", String.class).orElse("unknown");
+
+    if (error instanceof DomainException) {
+        // Expected errors - log at WARN level
+        log.warn("[{}] Domain error: {}", requestId, error.getMessage());
+    } else {
+        // Unexpected errors - log at ERROR with stack trace
+        log.error("[{}][{}] Unhandled exception: {}",
+            requestId, errorId, error.getMessage(), error);
+    }
+
+    ctx.status(500);
+    ctx.json(Map.of("error", "Internal error", "errorId", errorId));
+});
+```
+
+---
+
+## Audit Logging
+
+Log security-sensitive actions:
+
+<Tabs items={['AuditLogger', 'Usage']}>
+  <Tab value="AuditLogger">
+```java
+@Service
+public class AuditLogger {
+
+    private static final Logger log = LoggerFactory.getLogger("AUDIT");
+
+    public void logAction(Context ctx, String action, String resource,
+                         Map<String, Object> details) {
+        String userId = ctx.get("userId", String.class).orElse("anonymous");
+        String requestId = ctx.get("requestId", String.class).orElse("unknown");
+
+        Map<String, Object> auditEntry = Map.of(
+            "timestamp", Instant.now().toString(),
+            "requestId", requestId,
+            "userId", userId,
+            "action", action,
+            "resource", resource,
+            "details", details,
+            "ip", extractClientIp(ctx)
+        );
+
+        log.info(toJson(auditEntry));
+    }
+
+    public void logLogin(Context ctx, String email, boolean success) {
+        logAction(ctx, success ? "LOGIN_SUCCESS" : "LOGIN_FAILURE",
+            "auth", Map.of("email", email));
+    }
+
+    public void logDataAccess(Context ctx, String entity, long entityId) {
+        logAction(ctx, "DATA_ACCESS", entity, Map.of("entityId", entityId));
+    }
+
+    public void logDataModification(Context ctx, String entity, long entityId,
+                                   String operation) {
+        logAction(ctx, "DATA_" + operation.toUpperCase(), entity,
+            Map.of("entityId", entityId));
+    }
+}
+```
+  </Tab>
+  <Tab value="Usage">
+```java
+@Routes("/users")
+public class UserRoutes {
+
+    private final UserService userService;
+    private final AuditLogger auditLogger;
+
+    @Inject
+    public UserRoutes(UserService userService, AuditLogger auditLogger) {
+        this.userService = userService;
+        this.auditLogger = auditLogger;
+    }
+
+    public Router router() {
+        var r = new Router();
+
+        r.delete("/:id", ctx -> {
+            long id = Long.parseLong(ctx.paramOrThrow("id"));
+
+            userService.delete(id);
+
+            // Audit log the deletion
+            auditLogger.logDataModification(ctx, "user", id, "DELETE");
+
+            ctx.status(204);
+            ctx.text("");
+        });
+
+        return r;
+    }
+}
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Performance Logging
+
+Log slow requests for monitoring:
+
+```java
+@Middleware(order = 5)
+public class PerformanceLoggingMiddleware implements MiddlewareHandler {
+
+    private static final Logger log = LoggerFactory.getLogger("PERF");
+    private static final long SLOW_REQUEST_THRESHOLD_MS = 1000;
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        long startTime = System.nanoTime();
+
+        next.run();
+
+        long durationMs = (System.nanoTime() - startTime) / 1_000_000;
+
+        if (durationMs > SLOW_REQUEST_THRESHOLD_MS) {
+            log.warn("SLOW REQUEST: {} {} took {}ms",
+                ctx.method(), ctx.path(), durationMs);
+        }
+
+        // Record metrics
+        recordMetric("http_request_duration_ms", durationMs, Map.of(
+            "method", ctx.method(),
+            "path", normalizePath(ctx.path()),
+            "status", String.valueOf(ctx.status())
+        ));
+    }
+
+    private String normalizePath(String path) {
+        // Replace dynamic segments for metric grouping
+        return path.replaceAll("/\\d+", "/:id");
+    }
+}
+```
+
+---
+
+## Development vs Production
+
+Different logging for different environments:
+
+<Tabs items={['Configuration', 'Colorful Dev Logs']}>
+  <Tab value="Configuration">
+```java
+public class LoggingConfig {
+
+    private static final boolean IS_PRODUCTION =
+        "production".equals(System.getenv("ENVIRONMENT"));
+
+    public static MiddlewareHandler createLoggingMiddleware() {
+        if (IS_PRODUCTION) {
+            return new ProductionLoggingMiddleware();  // JSON
+        } else {
+            return new DevelopmentLoggingMiddleware(); // Colorful
+        }
+    }
+}
+```
+  </Tab>
+  <Tab value="Colorful Dev Logs">
+```java
+class DevelopmentLoggingMiddleware implements MiddlewareHandler {
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        long start = System.nanoTime();
+
+        // Cyan arrow for request
+        System.out.printf("\033[36m--> %s %s\033[0m%n",
+            ctx.method(), ctx.path());
+
+        // Log request body if present
+        String body = ctx.bodyRaw();
+        if (body != null && !body.isBlank()) {
+            System.out.printf("    Body: %s%n", truncate(body, 200));
+        }
+
+        next.run();
+
+        long durationMs = (System.nanoTime() - start) / 1_000_000;
+
+        // Green for success, red for error
+        String color = ctx.status() < 400 ? "\033[32m" : "\033[31m";
+        System.out.printf("%s<-- %d (%dms)\033[0m%n%n",
+            color, ctx.status(), durationMs);
+    }
+
+    private String truncate(String s, int maxLen) {
+        return s.length() > maxLen ? s.substring(0, maxLen) + "..." : s;
+    }
+}
+```
+
+**Output:**
+```
+--> POST /users
+    Body: {"name": "John", "email": "john@example.com"}
+<-- 201 (45ms)
+
+--> GET /users/999
+<-- 404 (3ms)
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Log Levels Guide
+
+| Level | When to Use | Examples |
+|-------|-------------|----------|
+| `ERROR` | System failures | Database down, unhandled exceptions |
+| `WARN` | Recoverable issues | Slow queries, validation failures |
+| `INFO` | Business events | User login, order created |
+| `DEBUG` | Development detail | SQL queries, method entry/exit |
+| `TRACE` | Verbose debugging | Request/response bodies |
+
+---
+
+## Best Practices
+
+<Callout type="info" title="Logging Guidelines">
+1. **Always include request ID** for correlation
+2. **Use structured logging** (JSON) in production
+3. **Never log sensitive data** (passwords, tokens, PII)
+4. **Log at appropriate levels** (ERROR for failures, INFO for events)
+5. **Include context** (user ID, entity IDs)
+6. **Normalize paths** for metrics aggregation
+7. **Set up log rotation** to prevent disk fill
+</Callout>

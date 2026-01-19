@@ -1,0 +1,460 @@
+---
+title: Context API
+description: The unified request/response interface for all handler interactions
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Context API
+
+The `Context` is Axiom's primary DX surface. It combines request reading, response writing, and request-scoped state in a single, intuitive interface.
+
+<Callout type="info" title="Design Principles">
+- Request data is **read-only** and immutable
+- Response can only be written **once**
+- State storage is **type-safe**
+- No annotations or magic
+</Callout>
+
+## Quick Reference
+
+```java
+router.get("/users/:id", ctx -> {
+    // Request
+    String method = ctx.method();           // "GET"
+    String path = ctx.path();               // "/users/123"
+    String id = ctx.param("id");            // "123"
+    String page = ctx.query("page");        // null or "1"
+    User body = ctx.body(User.class);       // parsed JSON
+    String auth = ctx.header("Authorization");
+
+    // Response
+    ctx.status(200);
+    ctx.setHeader("X-Custom", "value");
+    ctx.json(Map.of("id", id));
+});
+```
+
+---
+
+## Request Methods
+
+### HTTP Method & Path
+
+```java
+String method = ctx.method();  // "GET", "POST", "PUT", "DELETE", etc.
+String path = ctx.path();      // "/users/123" (without query string)
+```
+
+### Path Parameters
+
+Path parameters are defined in route patterns using colon prefix (`:name`):
+
+<Tabs items={['Basic', 'Required (Throw)', 'All Params']}>
+  <Tab value="Basic">
+```java
+router.get("/users/:id", ctx -> {
+    String id = ctx.param("id");  // Returns null if missing
+    ctx.json(Map.of("id", id));
+});
+```
+  </Tab>
+  <Tab value="Required (Throw)">
+```java
+router.get("/users/:id", ctx -> {
+    // Throws IllegalArgumentException if missing
+    String id = ctx.paramOrThrow("id");
+    ctx.json(Map.of("id", id));
+});
+```
+  </Tab>
+  <Tab value="All Params">
+```java
+router.get("/users/:userId/posts/:postId", ctx -> {
+    Map<String, String> params = ctx.params();
+    // { "userId": "123", "postId": "456" }
+    ctx.json(params);
+});
+```
+  </Tab>
+</Tabs>
+
+### Query Parameters
+
+For URL `/search?q=java&page=2&active=true`:
+
+<Accordions>
+  <Accordion title="Basic Query Access">
+```java
+String q = ctx.query("q");           // "java"
+String page = ctx.query("page");     // "2"
+String missing = ctx.query("foo");   // null
+```
+  </Accordion>
+
+  <Accordion title="With Default Values">
+```java
+String page = ctx.query("page", "1");        // "2" or "1" if missing
+String sort = ctx.query("sort", "created");  // default "created"
+```
+  </Accordion>
+
+  <Accordion title="Type-Safe Conversions">
+```java
+// Integer
+int page = ctx.queryInt("page");              // throws if missing/invalid
+int page = ctx.queryInt("page", 1);           // 1 if missing/invalid
+
+// Long
+long offset = ctx.queryLong("offset");        // throws if missing/invalid
+long offset = ctx.queryLong("offset", 0L);    // 0 if missing/invalid
+
+// Boolean (true for: "true", "1", "yes", "on")
+boolean active = ctx.queryBoolean("active");  // true
+boolean debug = ctx.queryBoolean("debug");    // false if missing
+```
+  </Accordion>
+
+  <Accordion title="All Query Parameters">
+```java
+Map<String, String> queries = ctx.queries();
+// { "q": "java", "page": "2", "active": "true" }
+```
+  </Accordion>
+</Accordions>
+
+### Request Body
+
+<Tabs items={['Type-Safe (Records)', 'Schemaless (Map)', 'Raw String']}>
+  <Tab value="Type-Safe (Records)">
+```java
+record CreateUserRequest(String name, String email) {}
+
+router.post("/users", ctx -> {
+    CreateUserRequest req = ctx.body(CreateUserRequest.class);
+    // req.name(), req.email() are type-safe
+    ctx.json(userService.create(req));
+});
+```
+  </Tab>
+  <Tab value="Schemaless (Map)">
+Koa/Express style - no DTOs needed:
+
+```java
+router.post("/login", ctx -> {
+    Map<String, Object> body = ctx.bodyAsMap();
+    String username = (String) body.get("username");
+    String password = (String) body.get("password");
+    // use directly
+});
+```
+  </Tab>
+  <Tab value="Raw String">
+For custom parsing or non-JSON:
+
+```java
+router.post("/webhook", ctx -> {
+    String raw = ctx.bodyRaw();
+    // Parse XML, form data, etc.
+    ctx.text("OK");
+});
+```
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+Body is parsed **once and cached**. Subsequent calls return the cached value.
+</Callout>
+
+### Request Headers
+
+```java
+// All headers (unmodifiable map)
+Map<String, String> headers = ctx.headers();
+
+// Specific header (case-insensitive)
+String auth = ctx.header("Authorization");
+String userAgent = ctx.header("User-Agent");
+
+// Convenience methods
+String contentType = ctx.contentType();  // Content-Type header
+String accept = ctx.accept();            // Accept header
+```
+
+---
+
+## Response Methods
+
+### Status Code
+
+```java
+ctx.status(201);  // Set before writing body
+ctx.status(404);
+ctx.status(500);
+```
+
+<Callout type="warn">
+Must be called **before** writing the response body. Defaults to `200 OK`.
+</Callout>
+
+### Response Headers
+
+```java
+ctx.setHeader("X-Request-Id", "abc123");
+ctx.setHeader("Cache-Control", "no-store");
+ctx.setHeader("Content-Disposition", "attachment; filename=report.pdf");
+```
+
+### Response Body
+
+<Tabs items={['JSON', 'Plain Text', 'HTML', 'Raw Bytes']}>
+  <Tab value="JSON">
+```java
+// Object (auto-serialized)
+ctx.json(new User("123", "John"));
+
+// Map
+ctx.json(Map.of(
+    "status", "ok",
+    "data", users
+));
+
+// List
+ctx.json(List.of(user1, user2, user3));
+```
+  </Tab>
+  <Tab value="Plain Text">
+```java
+ctx.text("Hello, World!");
+ctx.text("User created successfully");
+```
+  </Tab>
+  <Tab value="HTML">
+```java
+ctx.html("<h1>Welcome</h1><p>Hello, World!</p>");
+ctx.html(templateEngine.render("home.html", model));
+```
+  </Tab>
+  <Tab value="Raw Bytes">
+```java
+byte[] pdfBytes = generatePdf();
+ctx.setHeader("Content-Type", "application/pdf");
+ctx.send(pdfBytes);
+```
+  </Tab>
+</Tabs>
+
+### Redirects
+
+```java
+// 302 Found (temporary redirect)
+ctx.redirect("/login");
+
+// 301 Moved Permanently
+ctx.redirect("/new-url", 301);
+
+// 303 See Other (after POST)
+ctx.redirect("/success", 303);
+```
+
+### Error Responses
+
+```java
+// 404 Not Found
+ctx.notFound();
+// Sends: { "error": "Not Found" }
+
+// 400 Bad Request
+ctx.badRequest("Invalid email format");
+// Sends: { "error": "Bad Request", "message": "Invalid email format" }
+
+// Custom error
+ctx.status(422);
+ctx.json(Map.of(
+    "error", "Validation Failed",
+    "fields", Map.of("email", "required")
+));
+```
+
+---
+
+## State Storage
+
+Pass data between middleware and handlers using type-safe state storage:
+
+<Tabs items={['Set State', 'Get State', 'With Default']}>
+  <Tab value="Set State">
+```java
+// In auth middleware
+app.use((ctx, next) -> {
+    User user = authService.validate(ctx.header("Authorization"));
+    ctx.set("user", user);
+    ctx.set("userId", user.id());
+    ctx.set("roles", user.roles());
+    next.run();
+});
+```
+  </Tab>
+  <Tab value="Get State">
+```java
+// In handler
+router.get("/profile", ctx -> {
+    User user = ctx.get("user", User.class)
+        .orElseThrow(() -> new UnauthorizedException());
+
+    Long userId = ctx.get("userId", Long.class).orElseThrow();
+
+    ctx.json(user);
+});
+```
+  </Tab>
+  <Tab value="With Default">
+```java
+// With default value
+String theme = ctx.getOrDefault("theme", String.class, "light");
+int pageSize = ctx.getOrDefault("pageSize", Integer.class, 20);
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Middleware Support
+
+Context supports two middleware styles:
+
+<Tabs items={['Explicit Next', 'Context Next']}>
+  <Tab value="Explicit Next">
+```java
+app.use((ctx, next) -> {
+    System.out.println("Before: " + ctx.path());
+    next.run();
+    System.out.println("After: " + ctx.path());
+});
+```
+  </Tab>
+  <Tab value="Context Next">
+```java
+app.use(ctx -> {
+    System.out.println("Before: " + ctx.path());
+    ctx.next();  // Embedded in context
+    System.out.println("After: " + ctx.path());
+});
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Complete API Reference
+
+<Accordions>
+  <Accordion title="Request Methods">
+| Method | Return Type | Description |
+|--------|-------------|-------------|
+| `method()` | `String` | HTTP method (GET, POST, etc.) |
+| `path()` | `String` | Request path without query string |
+| `param(name)` | `String` | Path parameter or null |
+| `paramOrThrow(name)` | `String` | Path parameter or throws |
+| `params()` | `Map<String, String>` | All path parameters |
+| `query(name)` | `String` | Query parameter or null |
+| `query(name, default)` | `String` | Query parameter with default |
+| `queryInt(name)` | `int` | Query as integer (throws if missing) |
+| `queryInt(name, default)` | `int` | Query as integer with default |
+| `queryLong(name)` | `long` | Query as long (throws if missing) |
+| `queryLong(name, default)` | `long` | Query as long with default |
+| `queryBoolean(name)` | `boolean` | Query as boolean |
+| `queries()` | `Map<String, String>` | All query parameters |
+| `body(type)` | `T` | Parsed request body |
+| `bodyAsMap()` | `Map<String, Object>` | Body as Map (schemaless) |
+| `bodyRaw()` | `String` | Raw body string |
+| `headers()` | `Map<String, String>` | All request headers |
+| `header(name)` | `String` | Specific header or null |
+| `contentType()` | `String` | Content-Type header |
+| `accept()` | `String` | Accept header |
+  </Accordion>
+
+  <Accordion title="Response Methods">
+| Method | Description |
+|--------|-------------|
+| `status(code)` | Set HTTP status code |
+| `setHeader(name, value)` | Set response header |
+| `text(value)` | Send text/plain response |
+| `json(value)` | Send application/json response |
+| `html(value)` | Send text/html response |
+| `send(bytes)` | Send raw bytes |
+| `redirect(url)` | 302 redirect |
+| `redirect(url, status)` | Redirect with custom status |
+| `notFound()` | Send 404 response |
+| `badRequest(message)` | Send 400 response |
+  </Accordion>
+
+  <Accordion title="State Methods">
+| Method | Description |
+|--------|-------------|
+| `set(key, value)` | Store value in request state |
+| `get(key, type)` | Get Optional value from state |
+| `getOrDefault(key, type, default)` | Get value with default |
+  </Accordion>
+
+  <Accordion title="Middleware Methods">
+| Method | Description |
+|--------|-------------|
+| `next()` | Continue to next middleware/handler |
+  </Accordion>
+</Accordions>
+
+---
+
+## Best Practices
+
+<Accordions>
+  <Accordion title="Use Type-Safe Body Parsing">
+```java
+// ✅ Good - Type-safe with records
+record CreateUser(String name, String email) {}
+var req = ctx.body(CreateUser.class);
+
+// ❌ Avoid - Manual casting
+var body = ctx.bodyAsMap();
+String name = (String) body.get("name"); // No compile-time safety
+```
+  </Accordion>
+
+  <Accordion title="Use Query Defaults">
+```java
+// ✅ Good - Explicit defaults
+int page = ctx.queryInt("page", 1);
+int size = ctx.queryInt("size", 20);
+
+// ❌ Avoid - Manual null checking
+String pageStr = ctx.query("page");
+int page = pageStr != null ? Integer.parseInt(pageStr) : 1;
+```
+  </Accordion>
+
+  <Accordion title="Set Status Before Body">
+```java
+// ✅ Good
+ctx.status(201);
+ctx.json(created);
+
+// ❌ Wrong order (may not work)
+ctx.json(created);
+ctx.status(201);  // Too late!
+```
+  </Accordion>
+
+  <Accordion title="Type-Safe State Access">
+```java
+// ✅ Good - Type-safe with Optional
+User user = ctx.get("user", User.class)
+    .orElseThrow(() -> new UnauthorizedException());
+
+// ❌ Avoid - Unchecked cast
+User user = (User) ctx.get("user", Object.class).orElse(null);
+```
+  </Accordion>
+</Accordions>

@@ -7,7 +7,7 @@ import org.junit.jupiter.api.*;
 
 import io.axiom.core.handler.*;
 
-@DisplayName("Middleware")
+@DisplayName("MiddlewareFunction")
 class MiddlewareTest {
 
     @Nested
@@ -20,7 +20,7 @@ class MiddlewareTest {
             final List<String> log = new ArrayList<>();
             final Handler handler = ctx -> log.add("handler");
 
-            final Middleware identity = Middleware.identity();
+            final MiddlewareFunction identity = MiddlewareFunction.identity();
             final Handler wrapped = identity.apply(handler);
 
             wrapped.handle(null);
@@ -33,7 +33,7 @@ class MiddlewareTest {
         void returnsSameHandlerReference() {
             final Handler handler = ctx -> {};
 
-            final Middleware identity = Middleware.identity();
+            final MiddlewareFunction identity = MiddlewareFunction.identity();
             final Handler wrapped = identity.apply(handler);
 
             Assertions.assertThat(wrapped).isSameAs(handler);
@@ -50,7 +50,7 @@ class MiddlewareTest {
             final List<String> log = new ArrayList<>();
             final Handler handler = ctx -> log.add("handler");
 
-            final Middleware middleware = next -> ctx -> {
+            final MiddlewareFunction middleware = next -> ctx -> {
                 log.add("before");
                 next.handle(ctx);
                 log.add("after");
@@ -68,7 +68,7 @@ class MiddlewareTest {
             final List<String> log = new ArrayList<>();
             final Handler handler = ctx -> log.add("handler");
 
-            final Middleware shortCircuit = next -> ctx -> log.add("short-circuit");
+            final MiddlewareFunction shortCircuit = next -> ctx -> log.add("short-circuit");
 
             final Handler wrapped = shortCircuit.apply(handler);
             wrapped.handle(null);
@@ -87,19 +87,19 @@ class MiddlewareTest {
             final List<String> log = new ArrayList<>();
             final Handler handler = ctx -> log.add("handler");
 
-            final Middleware first = next -> ctx -> {
+            final MiddlewareFunction first = next -> ctx -> {
                 log.add("first-before");
                 next.handle(ctx);
                 log.add("first-after");
             };
 
-            final Middleware second = next -> ctx -> {
+            final MiddlewareFunction second = next -> ctx -> {
                 log.add("second-before");
                 next.handle(ctx);
                 log.add("second-after");
             };
 
-            final Middleware composed = first.andThen(second);
+            final MiddlewareFunction composed = first.andThen(second);
             final Handler wrapped = composed.apply(handler);
             wrapped.handle(null);
 
@@ -122,11 +122,11 @@ class MiddlewareTest {
             final List<String> log = new ArrayList<>();
             final Handler handler = ctx -> log.add("handler");
 
-            final Middleware a = next -> ctx -> { log.add("A"); next.handle(ctx); };
-            final Middleware b = next -> ctx -> { log.add("B"); next.handle(ctx); };
-            final Middleware c = next -> ctx -> { log.add("C"); next.handle(ctx); };
+            final MiddlewareFunction a = next -> ctx -> { log.add("A"); next.handle(ctx); };
+            final MiddlewareFunction b = next -> ctx -> { log.add("B"); next.handle(ctx); };
+            final MiddlewareFunction c = next -> ctx -> { log.add("C"); next.handle(ctx); };
 
-            final Middleware composed = Middleware.compose(a, b, c);
+            final MiddlewareFunction composed = MiddlewareFunction.compose(a, b, c);
             final Handler wrapped = composed.apply(handler);
             wrapped.handle(null);
 
@@ -138,7 +138,7 @@ class MiddlewareTest {
         void returnsIdentityForEmptyArray() {
             final Handler handler = ctx -> {};
 
-            final Middleware composed = Middleware.compose();
+            final MiddlewareFunction composed = MiddlewareFunction.compose();
             final Handler wrapped = composed.apply(handler);
 
             Assertions.assertThat(wrapped).isSameAs(handler);

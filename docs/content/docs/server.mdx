@@ -1,0 +1,387 @@
+---
+title: Running the Server
+description: How to start, configure, and run your Axiom HTTP server
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Running the Server
+
+Axiom provides multiple ways to start your HTTP server, from simple one-liners to fully customized configurations.
+
+## Quick Start
+
+The simplest way to run a server:
+
+```java
+import io.axiom.core.app.Axiom;
+import io.axiom.core.routing.Router;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/", c -> c.text("Hello, Axiom!"));
+
+        Axiom.start(router, 8080);
+    }
+}
+```
+
+<Callout type="info">
+`Axiom.start()` blocks the main thread until the server shuts down. This is intentional for production use.
+</Callout>
+
+## Start Methods
+
+### Simple Start
+
+```java
+// Just port
+Axiom.start(router, 8080);
+
+// Host and port
+Axiom.start(router, "0.0.0.0", 8080);
+
+// Localhost only
+Axiom.start(router, "127.0.0.1", 8080);
+```
+
+### Full Control with App
+
+For middleware, lifecycle hooks, and error handling:
+
+```java
+import io.axiom.core.app.*;
+import io.axiom.core.routing.Router;
+
+Router router = new Router();
+router.get("/", c -> c.text("Hello!"));
+
+App app = Axiom.create();
+
+// Add middleware
+app.use((ctx, next) -> {
+    System.out.println(ctx.method() + " " + ctx.path());
+    next.run();
+});
+
+// Add routes
+app.route(router);
+
+// Start server
+app.listen(8080);
+```
+
+## Server Configuration
+
+### Using ServerConfig Builder
+
+```java
+import io.axiom.core.server.ServerConfig;
+import java.time.Duration;
+
+App app = Axiom.create();
+app.route(router);
+
+app.listen(ServerConfig.builder()
+    .host("0.0.0.0")           // Bind to all interfaces
+    .port(8080)                 // Port number
+    .readTimeout(Duration.ofSeconds(30))
+    .writeTimeout(Duration.ofSeconds(30))
+    .shutdownTimeout(Duration.ofSeconds(30))
+    .virtualThreads(true)       // Enable virtual threads (default)
+    .build());
+```
+
+### Configuration Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `host` | `0.0.0.0` | Network interface to bind to |
+| `port` | `8080` | Port number (0 for random) |
+| `readTimeout` | `30s` | Max time to read request |
+| `writeTimeout` | `30s` | Max time to write response |
+| `shutdownTimeout` | `30s` | Max time for graceful shutdown |
+| `drainTimeout` | `10s` | Time to drain in-flight requests |
+| `virtualThreads` | `true` | Use virtual threads (Java 21+) |
+| `maxRequestSize` | `10MB` | Maximum request body size |
+
+### Using Config File
+
+Create `application.properties`:
+
+```properties
+server.host=0.0.0.0
+server.port=8080
+```
+
+Then in your code:
+
+```java
+import io.axiom.config.Config;
+
+App app = Axiom.create();
+app.route(router);
+
+Config.ServerConfig server = Config.server();
+app.listen(server.host(), server.port());
+```
+
+## Running in Different Modes
+
+<Tabs items={['Production', 'Development', 'Testing']}>
+  <Tab value="Production">
+```java
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/health", c -> c.text("OK"));
+        router.get("/api/users", userHandler);
+
+        App app = Axiom.create();
+
+        // Production middleware
+        app.use(loggingMiddleware);
+        app.use(corsMiddleware);
+        app.use(rateLimitMiddleware);
+
+        // Error handling
+        app.onError((ctx, e) -> {
+            ctx.status(500);
+            ctx.json(Map.of("error", "Internal error"));
+        });
+
+        // Lifecycle
+        app.onStart(() -> connectDatabase());
+        app.onShutdown(() -> closeDatabase());
+
+        app.route(router);
+        app.listen(ServerConfig.builder()
+            .host("0.0.0.0")
+            .port(80)
+            .build());
+    }
+}
+```
+  </Tab>
+  <Tab value="Development">
+```java
+public class DevApp {
+    public static void main(String[] args) {
+        Router router = new Router();
+        router.get("/", c -> c.text("Hello!"));
+
+        App app = Axiom.create();
+
+        // Development: verbose logging
+        app.use((ctx, next) -> {
+            System.out.println("[DEV] " + ctx.method() + " " + ctx.path());
+            next.run();
+        });
+
+        // Development: show full errors
+        app.onError((ctx, e) -> {
+            e.printStackTrace();
+            ctx.status(500);
+            ctx.json(Map.of(
+                "error", e.getMessage(),
+                "stack", Arrays.toString(e.getStackTrace())
+            ));
+        });
+
+        app.route(router);
+        app.listen(8080);
+    }
+}
+```
+  </Tab>
+  <Tab value="Testing">
+```java
+class ServerTest {
+    private App app;
+    private HttpClient client;
+
+    @BeforeEach
+    void setUp() {
+        Router router = new Router();
+        router.get("/test", c -> c.text("OK"));
+
+        app = Axiom.create();
+        app.route(router);
+
+        // Start on random port
+        app.listen(0);
+
+        client = HttpClient.newHttpClient();
+    }
+
+    @AfterEach
+    void tearDown() {
+        app.stop();
+    }
+
+    @Test
+    void testEndpoint() throws Exception {
+        int port = app.port();  // Get assigned port
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("http://localhost:" + port + "/test"))
+            .GET()
+            .build();
+
+        HttpResponse<String> response = client.send(
+            request,
+            HttpResponse.BodyHandlers.ofString()
+        );
+
+        assertEquals(200, response.statusCode());
+        assertEquals("OK", response.body());
+    }
+}
+```
+  </Tab>
+</Tabs>
+
+## Lifecycle Hooks
+
+Control what happens during startup and shutdown:
+
+```java
+App app = Axiom.create();
+
+// Called before server starts
+app.onStart(() -> {
+    System.out.println("Connecting to database...");
+    database.connect();
+});
+
+// Called when server is ready to accept requests
+app.onReady(() -> {
+    System.out.println("🚀 Server running on port " + app.port());
+});
+
+// Called during graceful shutdown
+app.onShutdown(() -> {
+    System.out.println("Closing connections...");
+    database.close();
+});
+
+// Called when an unhandled error occurs
+app.onError((ctx, e) -> {
+    System.err.println("Error: " + e.getMessage());
+    ctx.status(500);
+    ctx.json(Map.of("error", "Something went wrong"));
+});
+
+app.route(router);
+app.listen(8080);
+```
+
+## Graceful Shutdown
+
+Axiom handles shutdown gracefully:
+
+1. Stops accepting new connections
+2. Waits for in-flight requests to complete (up to `drainTimeout`)
+3. Executes shutdown hooks
+4. Closes the server
+
+Shutdown is triggered by:
+- `app.stop()` method call
+- SIGTERM signal (Ctrl+C or kill)
+- JVM shutdown hook
+
+```java
+App app = Axiom.create();
+app.route(router);
+app.listen(8080);
+
+// Later, to stop programmatically:
+app.stop();
+```
+
+## Virtual Threads
+
+Axiom uses **virtual threads by default** (Java 21+). Each request runs on its own virtual thread, enabling massive concurrency without thread pool tuning.
+
+```java
+// Virtual threads enabled by default
+app.listen(8080);
+
+// Explicitly configure
+app.listen(ServerConfig.builder()
+    .port(8080)
+    .virtualThreads(true)  // or false for platform threads
+    .build());
+```
+
+<Callout type="info">
+Virtual threads are lightweight and can scale to millions of concurrent connections without blocking.
+</Callout>
+
+## Running Commands
+
+<Tabs items={['Maven', 'Gradle', 'Direct']}>
+  <Tab value="Maven">
+**Run with Maven:**
+```bash
+mvn compile exec:java -Dexec.mainClass="com.example.App"
+```
+
+**With system properties:**
+```bash
+mvn compile exec:java \
+  -Dexec.mainClass="com.example.App" \
+  -Dserver.port=9090
+```
+
+**Package and run JAR:**
+```bash
+mvn package
+java -jar target/myapp.jar
+```
+  </Tab>
+  <Tab value="Gradle">
+**Run with Gradle:**
+```bash
+./gradlew run
+```
+
+**With system properties:**
+```bash
+./gradlew run -Dserver.port=9090
+```
+
+**Build and run JAR:**
+```bash
+./gradlew build
+java -jar build/libs/myapp.jar
+```
+  </Tab>
+  <Tab value="Direct">
+**Compile and run:**
+```bash
+# Compile
+javac -cp axiom.jar src/main/java/App.java -d out
+
+# Run
+java -cp out:axiom.jar App
+```
+
+**With arguments:**
+```bash
+java -cp out:axiom.jar \
+  -Dserver.port=9090 \
+  -Dserver.host=127.0.0.1 \
+  App
+```
+  </Tab>
+</Tabs>
+
+## What's Next?
+
+- **[Routing](/docs/routing)** — Define routes and handle requests
+- **[Middleware](/docs/middleware)** — Add cross-cutting concerns
+- **[Lifecycle](/docs/lifecycle)** — Startup and shutdown hooks
+- **[Configuration](/docs/config)** — Environment-based config

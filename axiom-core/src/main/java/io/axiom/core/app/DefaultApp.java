@@ -56,7 +56,7 @@ public class DefaultApp implements App {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultApp.class);
 
-    private final List<Middleware> middlewares;
+    private final List<MiddlewareFunction> middlewares;
     private final Router router;
     private final List<ThrowingRunnable> startHooks;
     private final List<Runnable> readyHooks;
@@ -336,7 +336,7 @@ public class DefaultApp implements App {
      *
      * @return the router with all registered routes
      */
-    public Router getRouter() {
+    public Router router() {
         return this.router;
     }
 
@@ -345,7 +345,7 @@ public class DefaultApp implements App {
      *
      * @return the error handler
      */
-    public ErrorHandler getErrorHandler() {
+    public ErrorHandler errorHandler() {
         return this.errorHandler;
     }
 
@@ -354,7 +354,7 @@ public class DefaultApp implements App {
      *
      * @return the server config
      */
-    public ServerConfig getServerConfig() {
+    public ServerConfig serverConfig() {
         return this.serverConfig;
     }
 
@@ -441,15 +441,17 @@ public class DefaultApp implements App {
         final String method = ctx.method();
         final String path = ctx.path();
 
-        final RouteMatch match = this.router.match(method, path);
+        final var matchOpt = this.router.match(method, path);
 
-        if (match == null) {
+        if (matchOpt.isEmpty()) {
             if (this.router.hasRoute(path)) {
                 final List<String> allowed = this.router.allowedMethods(path);
                 throw new MethodNotAllowedException(method, path, allowed);
             }
             throw new RouteNotFoundException(method, path);
         }
+
+        final RouteMatch match = matchOpt.get();
 
         if (ctx instanceof final io.axiom.core.context.DefaultContext defaultCtx) {
             defaultCtx.setPathParams(match.params());
@@ -484,31 +486,37 @@ public class DefaultApp implements App {
     // ========== Default Error Handler ==========
 
     private static void defaultErrorHandler(final Context ctx, final Exception e) {
-        if (e instanceof final RouteNotFoundException notFound) {
-            ctx.status(404);
-            ctx.json(Map.of(
-                    "error", "Not Found",
-                    "method", notFound.method(),
-                    "path", notFound.path()));
-        } else if (e instanceof final MethodNotAllowedException notAllowed) {
-            ctx.status(405);
-            ctx.header("Allow", String.join(", ", notAllowed.allowedMethods()));
-            ctx.json(Map.of(
-                    "error", "Method Not Allowed",
-                    "path", notAllowed.path(),
-                    "allowed", notAllowed.allowedMethods()));
-        } else if (e instanceof BodyParseException) {
-            ctx.status(400);
-            ctx.json(Map.of(
-                    "error", "Bad Request",
-                    "message", e.getMessage()));
-        } else if (e instanceof ResponseCommittedException) {
-            DefaultApp.LOG.warn("Response already committed: {}", e.getMessage());
-        } else {
-            ctx.status(500);
-            ctx.json(Map.of(
-                    "error", "Internal Server Error",
-                    "message", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+        switch (e) {
+            case final RouteNotFoundException notFound -> {
+                ctx.status(404);
+                ctx.json(Map.of(
+                        "error", "Not Found",
+                        "method", notFound.method(),
+                        "path", notFound.path()));
+            }
+            case final MethodNotAllowedException notAllowed -> {
+                ctx.status(405);
+                ctx.setHeader("Allow", String.join(", ", notAllowed.allowedMethods()));
+                ctx.json(Map.of(
+                        "error", "Method Not Allowed",
+                        "path", notAllowed.path(),
+                        "allowed", notAllowed.allowedMethods()));
+            }
+            case final BodyParseException _ -> {
+                ctx.status(400);
+                ctx.json(Map.of(
+                        "error", "Bad Request",
+                        "message", e.getMessage()));
+            }
+            case final ResponseCommittedException _ -> {
+                DefaultApp.LOG.warn("Response already committed: {}", e.getMessage());
+            }
+            default -> {
+                ctx.status(500);
+                ctx.json(Map.of(
+                        "error", "Internal Server Error",
+                        "message", e.getMessage() != null ? e.getMessage() : "Unknown error"));
+            }
         }
     }
 }

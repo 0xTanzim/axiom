@@ -1,0 +1,906 @@
+---
+title: Examples
+description: Complete runnable examples with full code
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Examples
+
+Complete, runnable examples demonstrating Axiom patterns.
+
+---
+
+## Minimal Hello World
+
+The simplest possible Axiom application:
+
+```java
+import axiom.core.AxiomApplication;
+
+public class HelloApp {
+    public static void main(String[] args) {
+        var app = new AxiomApplication();
+
+        app.get("/", ctx -> ctx.text("Hello, World!"));
+
+        app.listen(3000);
+    }
+}
+```
+
+Run it and test:
+```bash
+curl http://localhost:3000
+# Hello, World!
+```
+
+---
+
+## REST API with CRUD
+
+A complete REST API with in-memory storage:
+
+<Accordions>
+  <Accordion title="Application.java">
+```java
+import axiom.core.AxiomApplication;
+
+public class Application {
+    public static void main(String[] args) {
+        var app = new AxiomApplication();
+
+        // Mount user routes
+        app.mount("/api/users", new UserRoutes().router());
+
+        // Global error handler
+        app.onError((ctx, error) -> {
+            if (error instanceof NotFoundException) {
+                ctx.status(404);
+                ctx.json(Map.of("error", error.getMessage()));
+            } else if (error instanceof ValidationException ve) {
+                ctx.status(400);
+                ctx.json(Map.of("error", ve.getMessage(), "errors", ve.getErrors()));
+            } else {
+                ctx.status(500);
+                ctx.json(Map.of("error", "Internal server error"));
+            }
+        });
+
+        app.listen(3000);
+        System.out.println("API running at http://localhost:3000");
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="User.java">
+```java
+public record User(
+    Long id,
+    String name,
+    String email,
+    Instant createdAt
+) {
+    public User withId(Long id) {
+        return new User(id, name, email, createdAt);
+    }
+
+    public static User create(String name, String email) {
+        return new User(null, name, email, Instant.now());
+    }
+}
+
+public record CreateUserRequest(String name, String email) {}
+public record UpdateUserRequest(String name, String email) {}
+```
+  </Accordion>
+
+  <Accordion title="UserRepository.java">
+```java
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+@Repository
+public class UserRepository {
+
+    private final Map<Long, User> users = new ConcurrentHashMap<>();
+    private final AtomicLong idGenerator = new AtomicLong(1);
+
+    public List<User> findAll() {
+        return new ArrayList<>(users.values());
+    }
+
+    public Optional<User> findById(Long id) {
+        return Optional.ofNullable(users.get(id));
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return users.values().stream()
+            .filter(u -> u.email().equals(email))
+            .findFirst();
+    }
+
+    public User save(User user) {
+        if (user.id() == null) {
+            User withId = user.withId(idGenerator.getAndIncrement());
+            users.put(withId.id(), withId);
+            return withId;
+        }
+        users.put(user.id(), user);
+        return user;
+    }
+
+    public void delete(Long id) {
+        users.remove(id);
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="UserService.java">
+```java
+@Service
+public class UserService {
+
+    private final UserRepository userRepository;
+
+    @Inject
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    public List<User> findAll() {
+        return userRepository.findAll();
+    }
+
+    public User findById(Long id) {
+        return userRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException("User not found: " + id));
+    }
+
+    public User create(CreateUserRequest request) {
+        validate(request);
+
+        if (userRepository.findByEmail(request.email()).isPresent()) {
+            throw new ConflictException("Email already registered");
+        }
+
+        User user = User.create(request.name(), request.email());
+        return userRepository.save(user);
+    }
+
+    public User update(Long id, UpdateUserRequest request) {
+        User existing = findById(id);
+
+        User updated = new User(
+            existing.id(),
+            request.name() != null ? request.name() : existing.name(),
+            request.email() != null ? request.email() : existing.email(),
+            existing.createdAt()
+        );
+
+        return userRepository.save(updated);
+    }
+
+    public void delete(Long id) {
+        findById(id);  // Verify exists
+        userRepository.delete(id);
+    }
+
+    private void validate(CreateUserRequest request) {
+        List<String> errors = new ArrayList<>();
+
+        if (request.name() == null || request.name().isBlank()) {
+            errors.add("name is required");
+        }
+        if (request.email() == null || !request.email().contains("@")) {
+            errors.add("valid email is required");
+        }
+
+        if (!errors.isEmpty()) {
+            throw new ValidationException("Validation failed", errors);
+        }
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="UserRoutes.java">
+```java
+@Routes("/users")
+public class UserRoutes {
+
+    private final UserService userService;
+
+    @Inject
+    public UserRoutes(UserService userService) {
+        this.userService = userService;
+    }
+
+    public Router router() {
+        var r = new Router();
+
+        // GET /users
+        r.get("/", ctx -> {
+            ctx.json(userService.findAll());
+        });
+
+        // GET /users/:id
+        r.get("/:id", ctx -> {
+            long id = Long.parseLong(ctx.paramOrThrow("id"));
+            ctx.json(userService.findById(id));
+        });
+
+        // POST /users
+        r.post("/", ctx -> {
+            var request = ctx.body(CreateUserRequest.class);
+            User user = userService.create(request);
+            ctx.status(201);
+            ctx.json(user);
+        });
+
+        // PUT /users/:id
+        r.put("/:id", ctx -> {
+            long id = Long.parseLong(ctx.paramOrThrow("id"));
+            var request = ctx.body(UpdateUserRequest.class);
+            ctx.json(userService.update(id, request));
+        });
+
+        // DELETE /users/:id
+        r.delete("/:id", ctx -> {
+            long id = Long.parseLong(ctx.paramOrThrow("id"));
+            userService.delete(id);
+            ctx.status(204);
+            ctx.text("");
+        });
+
+        return r;
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="Exceptions.java">
+```java
+public sealed class DomainException extends RuntimeException
+    permits NotFoundException, ValidationException, ConflictException {
+
+    public DomainException(String message) {
+        super(message);
+    }
+}
+
+public final class NotFoundException extends DomainException {
+    public NotFoundException(String message) { super(message); }
+}
+
+public final class ConflictException extends DomainException {
+    public ConflictException(String message) { super(message); }
+}
+
+public final class ValidationException extends DomainException {
+    private final List<String> errors;
+
+    public ValidationException(String message, List<String> errors) {
+        super(message);
+        this.errors = errors;
+    }
+
+    public List<String> getErrors() { return errors; }
+}
+```
+  </Accordion>
+
+  <Accordion title="Test with cURL">
+```bash
+# Create user
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+# {"id":1,"name":"John Doe","email":"john@example.com",...}
+
+# List users
+curl http://localhost:3000/api/users
+# [{"id":1,...}]
+
+# Get user
+curl http://localhost:3000/api/users/1
+# {"id":1,"name":"John Doe",...}
+
+# Update user
+curl -X PUT http://localhost:3000/api/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Smith"}'
+# {"id":1,"name":"John Smith",...}
+
+# Delete user
+curl -X DELETE http://localhost:3000/api/users/1
+# (204 No Content)
+
+# Get deleted user
+curl http://localhost:3000/api/users/1
+# {"error":"User not found: 1"}
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## API with Authentication
+
+Complete auth flow with JWT tokens:
+
+<Accordions>
+  <Accordion title="AuthApplication.java">
+```java
+public class AuthApplication {
+    public static void main(String[] args) {
+        var app = AxiomApplication.start(AuthApplication.class);
+
+        app.listen(3000);
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="JwtConfig.java">
+```java
+@Service
+public class JwtConfig {
+    private final String secret;
+    private final long expirationMs;
+
+    public JwtConfig() {
+        this.secret = System.getenv().getOrDefault("JWT_SECRET", "dev-secret");
+        this.expirationMs = Long.parseLong(
+            System.getenv().getOrDefault("JWT_EXPIRATION_MS", "3600000")
+        );
+    }
+
+    public String getSecret() { return secret; }
+    public long getExpirationMs() { return expirationMs; }
+}
+```
+  </Accordion>
+
+  <Accordion title="JwtService.java">
+```java
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import javax.crypto.SecretKey;
+
+@Service
+public class JwtService {
+
+    private final SecretKey key;
+    private final long expirationMs;
+
+    @Inject
+    public JwtService(JwtConfig config) {
+        this.key = Keys.hmacShaKeyFor(config.getSecret().getBytes());
+        this.expirationMs = config.getExpirationMs();
+    }
+
+    public String generateToken(Long userId, String email, String role) {
+        Instant now = Instant.now();
+
+        return Jwts.builder()
+            .setSubject(String.valueOf(userId))
+            .claim("email", email)
+            .claim("role", role)
+            .setIssuedAt(Date.from(now))
+            .setExpiration(Date.from(now.plusMillis(expirationMs)))
+            .signWith(key)
+            .compact();
+    }
+
+    public Claims validateToken(String token) {
+        try {
+            return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        } catch (JwtException e) {
+            throw new UnauthorizedException("Invalid token: " + e.getMessage());
+        }
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="AuthMiddleware.java">
+```java
+@Middleware(order = 10)
+public class AuthMiddleware implements MiddlewareHandler {
+
+    private final JwtService jwtService;
+
+    @Inject
+    public AuthMiddleware(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
+
+    @Override
+    public void handle(Context ctx, Next next) throws Exception {
+        // Skip auth for public routes
+        String path = ctx.path();
+        if (path.startsWith("/auth/") || path.equals("/health")) {
+            next.run();
+            return;
+        }
+
+        String authHeader = ctx.header("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new UnauthorizedException("Missing or invalid Authorization header");
+        }
+
+        String token = authHeader.substring(7);
+        Claims claims = jwtService.validateToken(token);
+
+        // Store user info in context
+        ctx.set("userId", Long.parseLong(claims.getSubject()));
+        ctx.set("email", claims.get("email", String.class));
+        ctx.set("role", claims.get("role", String.class));
+
+        next.run();
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="AuthRoutes.java">
+```java
+@Routes("/auth")
+public class AuthRoutes {
+
+    private final UserRepository userRepository;
+    private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Inject
+    public AuthRoutes(UserRepository userRepository, JwtService jwtService,
+                     PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.jwtService = jwtService;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    record RegisterRequest(String name, String email, String password) {}
+    record LoginRequest(String email, String password) {}
+    record AuthResponse(String token, UserDto user) {}
+    record UserDto(Long id, String name, String email) {}
+
+    public Router router() {
+        var r = new Router();
+
+        r.post("/register", ctx -> {
+            var request = ctx.body(RegisterRequest.class);
+
+            if (userRepository.findByEmail(request.email()).isPresent()) {
+                throw new ConflictException("Email already registered");
+            }
+
+            User user = userRepository.save(new User(
+                null,
+                request.name(),
+                request.email(),
+                passwordEncoder.encode(request.password()),
+                "user",
+                Instant.now()
+            ));
+
+            String token = jwtService.generateToken(
+                user.id(), user.email(), user.role()
+            );
+
+            ctx.status(201);
+            ctx.json(new AuthResponse(token, toDto(user)));
+        });
+
+        r.post("/login", ctx -> {
+            var request = ctx.body(LoginRequest.class);
+
+            User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+
+            if (!passwordEncoder.matches(request.password(), user.passwordHash())) {
+                throw new UnauthorizedException("Invalid credentials");
+            }
+
+            String token = jwtService.generateToken(
+                user.id(), user.email(), user.role()
+            );
+
+            ctx.json(new AuthResponse(token, toDto(user)));
+        });
+
+        return r;
+    }
+
+    private UserDto toDto(User user) {
+        return new UserDto(user.id(), user.name(), user.email());
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="PasswordEncoder.java">
+```java
+import org.mindrot.jbcrypt.BCrypt;
+
+@Service
+public class PasswordEncoder {
+
+    public String encode(String rawPassword) {
+        return BCrypt.hashpw(rawPassword, BCrypt.gensalt(12));
+    }
+
+    public boolean matches(String rawPassword, String encodedPassword) {
+        return BCrypt.checkpw(rawPassword, encodedPassword);
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="ProtectedRoutes.java">
+```java
+@Routes("/api/protected")
+public class ProtectedRoutes {
+
+    public Router router() {
+        var r = new Router();
+
+        r.get("/me", ctx -> {
+            Long userId = ctx.get("userId", Long.class)
+                .orElseThrow(() -> new UnauthorizedException("Not authenticated"));
+            String email = ctx.get("email", String.class).orElse("");
+            String role = ctx.get("role", String.class).orElse("");
+
+            ctx.json(Map.of(
+                "userId", userId,
+                "email", email,
+                "role", role
+            ));
+        });
+
+        r.get("/admin", ctx -> {
+            String role = ctx.get("role", String.class).orElse("");
+            if (!"admin".equals(role)) {
+                throw new ForbiddenException("Admin access required");
+            }
+            ctx.json(Map.of("message", "Welcome, admin!"));
+        });
+
+        return r;
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="Test Auth Flow">
+```bash
+# Register
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"John","email":"john@example.com","password":"secret123"}'
+# {"token":"eyJhbG...","user":{"id":1,"name":"John",...}}
+
+# Login
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john@example.com","password":"secret123"}'
+# {"token":"eyJhbG...","user":{...}}
+
+# Access protected route
+curl http://localhost:3000/api/protected/me \
+  -H "Authorization: Bearer eyJhbG..."
+# {"userId":1,"email":"john@example.com","role":"user"}
+
+# Access without token
+curl http://localhost:3000/api/protected/me
+# {"error":"Missing or invalid Authorization header"}
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## Database Integration
+
+Example with PostgreSQL:
+
+<Accordions>
+  <Accordion title="DatabaseConfig.java">
+```java
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+public class DatabaseConfig {
+
+    public static DataSource createDataSource() {
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(System.getenv("DATABASE_URL"));
+        config.setUsername(System.getenv("DATABASE_USER"));
+        config.setPassword(System.getenv("DATABASE_PASSWORD"));
+        config.setMaximumPoolSize(10);
+        config.setMinimumIdle(2);
+        return new HikariDataSource(config);
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="Application with Database">
+```java
+public class Application {
+    public static void main(String[] args) {
+        var app = new AxiomApplication();
+
+        // Initialize database
+        DataSource dataSource = DatabaseConfig.createDataSource();
+        AxiomPersistence.initialize(dataSource);
+
+        // Lifecycle hooks
+        app.onStart(() -> {
+            System.out.println("Starting application...");
+            runMigrations(dataSource);
+        });
+
+        app.onShutdown(() -> {
+            System.out.println("Shutting down...");
+            if (dataSource instanceof HikariDataSource hds) {
+                hds.close();
+            }
+        });
+
+        app.mount("/api/posts", new PostRoutes(new PostRepository()).router());
+
+        app.listen(3000);
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="PostRepository.java">
+```java
+@Repository
+public class PostRepository {
+
+    public List<Post> findAll() {
+        return AxiomPersistence.query("SELECT * FROM posts ORDER BY created_at DESC",
+            rs -> new Post(
+                rs.getLong("id"),
+                rs.getString("title"),
+                rs.getString("content"),
+                rs.getLong("author_id"),
+                rs.getTimestamp("created_at").toInstant()
+            )
+        );
+    }
+
+    public Optional<Post> findById(Long id) {
+        return AxiomPersistence.querySingle(
+            "SELECT * FROM posts WHERE id = ?",
+            List.of(id),
+            rs -> new Post(
+                rs.getLong("id"),
+                rs.getString("title"),
+                rs.getString("content"),
+                rs.getLong("author_id"),
+                rs.getTimestamp("created_at").toInstant()
+            )
+        );
+    }
+
+    @Transactional
+    public Post save(Post post) {
+        if (post.id() == null) {
+            Long id = AxiomPersistence.insertReturningId(
+                "INSERT INTO posts (title, content, author_id, created_at) VALUES (?, ?, ?, ?)",
+                List.of(post.title(), post.content(), post.authorId(), Timestamp.from(Instant.now()))
+            );
+            return post.withId(id);
+        }
+
+        AxiomPersistence.execute(
+            "UPDATE posts SET title = ?, content = ? WHERE id = ?",
+            List.of(post.title(), post.content(), post.id())
+        );
+        return post;
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        AxiomPersistence.execute("DELETE FROM posts WHERE id = ?", List.of(id));
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="Transaction Example">
+```java
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final InventoryRepository inventoryRepository;
+    private final PaymentService paymentService;
+
+    @Inject
+    public OrderService(OrderRepository orderRepository,
+                       InventoryRepository inventoryRepository,
+                       PaymentService paymentService) {
+        this.orderRepository = orderRepository;
+        this.inventoryRepository = inventoryRepository;
+        this.paymentService = paymentService;
+    }
+
+    @Transactional
+    public Order createOrder(CreateOrderRequest request) {
+        // Check inventory
+        for (var item : request.items()) {
+            int available = inventoryRepository.getAvailable(item.productId());
+            if (available < item.quantity()) {
+                throw new ValidationException("Insufficient inventory for: " + item.productId());
+            }
+        }
+
+        // Create order
+        Order order = orderRepository.save(Order.create(request));
+
+        // Reserve inventory
+        for (var item : request.items()) {
+            inventoryRepository.reserve(item.productId(), item.quantity());
+        }
+
+        // Process payment
+        paymentService.charge(order.total(), request.paymentMethod());
+
+        return order;
+    }
+    // If any step fails, entire transaction rolls back
+}
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## File Upload
+
+Handle multipart file uploads:
+
+```java
+@Routes("/files")
+public class FileRoutes {
+
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final Set<String> ALLOWED_TYPES = Set.of(
+        "image/jpeg", "image/png", "image/gif", "application/pdf"
+    );
+
+    public Router router() {
+        var r = new Router();
+
+        r.post("/upload", ctx -> {
+            // Get file from multipart request
+            var file = ctx.file("document");
+
+            if (file == null) {
+                throw new ValidationException("No file uploaded");
+            }
+
+            if (file.size() > MAX_FILE_SIZE) {
+                throw new ValidationException("File too large (max 10MB)");
+            }
+
+            if (!ALLOWED_TYPES.contains(file.contentType())) {
+                throw new ValidationException("File type not allowed");
+            }
+
+            // Save file
+            String filename = UUID.randomUUID() + "-" + file.filename();
+            Path destination = Path.of("uploads", filename);
+            Files.createDirectories(destination.getParent());
+            Files.write(destination, file.bytes());
+
+            ctx.status(201);
+            ctx.json(Map.of(
+                "filename", filename,
+                "size", file.size(),
+                "contentType", file.contentType()
+            ));
+        });
+
+        return r;
+    }
+}
+```
+
+---
+
+## WebSocket Chat (Coming Soon)
+
+<Callout type="warn" title="Future Feature">
+WebSocket support is planned for a future release.
+</Callout>
+
+---
+
+## Project Structure
+
+Recommended project layout for larger applications:
+
+```
+src/main/java/com/example/
+├── Application.java           # Entry point
+├── config/
+│   ├── DatabaseConfig.java
+│   └── JwtConfig.java
+├── domain/
+│   ├── user/
+│   │   ├── User.java
+│   │   ├── UserRepository.java
+│   │   ├── UserService.java
+│   │   └── UserRoutes.java
+│   └── post/
+│       ├── Post.java
+│       ├── PostRepository.java
+│       ├── PostService.java
+│       └── PostRoutes.java
+├── middleware/
+│   ├── AuthMiddleware.java
+│   ├── LoggingMiddleware.java
+│   └── RateLimitMiddleware.java
+├── exception/
+│   ├── DomainException.java
+│   ├── NotFoundException.java
+│   └── ValidationException.java
+└── util/
+    ├── JwtService.java
+    └── PasswordEncoder.java
+```
+
+<Callout type="info" title="Package by Feature">
+Organize code by domain feature (user, post, order) rather than technical layer.
+This improves cohesion and makes it easier to understand each feature.
+</Callout>
+
+---
+
+## Running Examples
+
+<Steps>
+
+### Clone the Examples
+
+```bash
+git clone https://github.com/axiom-framework/examples
+cd examples/crud-api
+```
+
+### Build
+
+```bash
+./mvnw clean package
+```
+
+### Run
+
+```bash
+java -jar target/crud-api.jar
+```
+
+### Test
+
+```bash
+curl http://localhost:3000/api/users
+```
+
+</Steps>

@@ -27,32 +27,32 @@ class RouterTest {
         @DisplayName("get() registers GET route")
         void getRegistersGetRoute() {
             RouterTest.this.router.get("/users", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("GET", "/users");
-            Assertions.assertThat(match).isNotNull();
+            final var match = RouterTest.this.router.match("GET", "/users");
+            Assertions.assertThat(match).isPresent();
         }
 
         @Test
         @DisplayName("post() registers POST route")
         void postRegistersPostRoute() {
             RouterTest.this.router.post("/users", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("POST", "/users");
-            Assertions.assertThat(match).isNotNull();
+            final var match = RouterTest.this.router.match("POST", "/users");
+            Assertions.assertThat(match).isPresent();
         }
 
         @Test
         @DisplayName("put() registers PUT route")
         void putRegistersPutRoute() {
             RouterTest.this.router.put("/users/:id", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("PUT", "/users/123");
-            Assertions.assertThat(match).isNotNull();
+            final var match = RouterTest.this.router.match("PUT", "/users/123");
+            Assertions.assertThat(match).isPresent();
         }
 
         @Test
         @DisplayName("delete() registers DELETE route")
         void deleteRegistersDeleteRoute() {
             RouterTest.this.router.delete("/users/:id", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("DELETE", "/users/123");
-            Assertions.assertThat(match).isNotNull();
+            final var match = RouterTest.this.router.match("DELETE", "/users/123");
+            Assertions.assertThat(match).isPresent();
         }
     }
 
@@ -64,43 +64,43 @@ class RouterTest {
         @DisplayName("matches static path")
         void matchesStaticPath() {
             RouterTest.this.router.get("/users", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("GET", "/users");
-            Assertions.assertThat(match).isNotNull();
-            Assertions.assertThat(match.route().path()).isEqualTo("/users");
+            final var match = RouterTest.this.router.match("GET", "/users");
+            Assertions.assertThat(match).isPresent();
+            Assertions.assertThat(match.get().route().path()).isEqualTo("/users");
         }
 
         @Test
         @DisplayName("matches parameterized path")
         void matchesParameterizedPath() {
             RouterTest.this.router.get("/users/:id", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("GET", "/users/123");
-            Assertions.assertThat(match).isNotNull();
-            Assertions.assertThat(match.params()).containsEntry("id", "123");
+            final var match = RouterTest.this.router.match("GET", "/users/123");
+            Assertions.assertThat(match).isPresent();
+            Assertions.assertThat(match.get().params()).containsEntry("id", "123");
         }
 
         @Test
         @DisplayName("matches wildcard path")
         void matchesWildcardPath() {
             RouterTest.this.router.get("/files/*", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("GET", "/files/path/to/file.txt");
-            Assertions.assertThat(match).isNotNull();
-            Assertions.assertThat(match.params()).containsEntry("*", "path/to/file.txt");
+            final var match = RouterTest.this.router.match("GET", "/files/path/to/file.txt");
+            Assertions.assertThat(match).isPresent();
+            Assertions.assertThat(match.get().params()).containsEntry("*", "path/to/file.txt");
         }
 
         @Test
-        @DisplayName("returns null for non-existent route")
-        void returnsNullForNonExistent() {
+        @DisplayName("returns empty for non-existent route")
+        void returnsEmptyForNonExistent() {
             RouterTest.this.router.get("/users", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("GET", "/posts");
-            Assertions.assertThat(match).isNull();
+            final var match = RouterTest.this.router.match("GET", "/posts");
+            Assertions.assertThat(match).isEmpty();
         }
 
         @Test
-        @DisplayName("returns null for wrong method")
-        void returnsNullForWrongMethod() {
+        @DisplayName("returns empty for wrong method")
+        void returnsEmptyForWrongMethod() {
             RouterTest.this.router.get("/users", RouterTest.NOOP);
-            final RouteMatch match = RouterTest.this.router.match("POST", "/users");
-            Assertions.assertThat(match).isNull();
+            final var match = RouterTest.this.router.match("POST", "/users");
+            Assertions.assertThat(match).isEmpty();
         }
     }
 
@@ -116,8 +116,8 @@ class RouterTest {
                 api.get("/posts", RouterTest.NOOP);
             });
 
-            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/users")).isNotNull();
-            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/posts")).isNotNull();
+            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/users")).isPresent();
+            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/posts")).isPresent();
         }
 
         @Test
@@ -129,7 +129,7 @@ class RouterTest {
                 });
             });
 
-            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/v1/users")).isNotNull();
+            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/v1/users")).isPresent();
         }
     }
 
@@ -208,8 +208,8 @@ class RouterTest {
             RouterTest.this.router.get("/users", RouterTest.NOOP);
             RouterTest.this.router.merge(other);
 
-            Assertions.assertThat(RouterTest.this.router.match("GET", "/users")).isNotNull();
-            Assertions.assertThat(RouterTest.this.router.match("GET", "/posts")).isNotNull();
+            Assertions.assertThat(RouterTest.this.router.match("GET", "/users")).isPresent();
+            Assertions.assertThat(RouterTest.this.router.match("GET", "/posts")).isPresent();
         }
 
         @Test
@@ -220,7 +220,7 @@ class RouterTest {
 
             RouterTest.this.router.merge("/api", other);
 
-            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/users")).isNotNull();
+            Assertions.assertThat(RouterTest.this.router.match("GET", "/api/users")).isPresent();
         }
     }
 }

@@ -271,9 +271,9 @@ public final class Router {
      *
      * @param method the HTTP method
      * @param path   the request path
-     * @return RouteMatch if found, null otherwise
+     * @return Optional containing RouteMatch if found, empty otherwise
      */
-    public RouteMatch match(final String method, final String path) {
+    public Optional<RouteMatch> match(final String method, final String path) {
         final RouteMatch result = this.trie.match(method, path);
         if (Router.LOG.isDebugEnabled()) {
             if (result != null) {
@@ -282,7 +282,7 @@ public final class Router {
                 Router.LOG.debug("No route matched: {} {}", method, path);
             }
         }
-        return result;
+        return Optional.ofNullable(result);
     }
 
     /**
@@ -290,11 +290,12 @@ public final class Router {
      *
      * <p>
      * Useful for debugging and route documentation.
+     * The returned list is unmodifiable.
      *
-     * @return list of all routes
+     * @return unmodifiable list of all registered routes
      */
     public List<Route> routes() {
-        return this.trie.routes();
+        return List.copyOf(this.trie.routes());
     }
 
     /**
@@ -328,7 +329,7 @@ public final class Router {
      * @return true if route exists
      */
     public boolean hasRoute(final String method, final String path) {
-        return this.match(method, path) != null;
+        return this.match(method, path).isPresent();
     }
 
     /**

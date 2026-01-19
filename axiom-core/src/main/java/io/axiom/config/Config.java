@@ -6,6 +6,18 @@ import java.util.*;
 /**
  * Simple, static configuration access for Axiom applications.
  *
+ * <p>
+ * This is the <b>recommended entry point</b> for configuration access.
+ * It provides a static facade over {@link AxiomConfig} for common use cases.
+ *
+ * <h2>When to Use What</h2>
+ * <ul>
+ *   <li><b>{@code Config}</b> (this class) - Simple, static access for most apps.
+ *       Use when you need quick access to config values without DI.</li>
+ *   <li><b>{@link AxiomConfig}</b> - Instance-based, injectable configuration.
+ *       Use when you need testability, custom sources, or DI integration.</li>
+ * </ul>
+ *
  * <h2>Getting Values</h2>
  * <pre>{@code
  * // String values
@@ -38,6 +50,7 @@ import java.util.*;
  *
  * <p>You don't need to configure this. It just works.
  *
+ * @see AxiomConfig
  * @since 0.1.0
  */
 public final class Config {

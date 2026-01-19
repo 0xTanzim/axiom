@@ -69,9 +69,19 @@ public final class DefaultContext implements Context {
     }
 
     @Override
+    public Map<String, String> params() {
+        return Collections.unmodifiableMap(this.request.params());
+    }
+
+    @Override
     public String query(final String name) {
         Objects.requireNonNull(name, "Query parameter name cannot be null");
         return this.request.queryParams().get(name);
+    }
+
+    @Override
+    public Map<String, String> queries() {
+        return Collections.unmodifiableMap(this.request.queryParams());
     }
 
     @Override
@@ -124,7 +134,7 @@ public final class DefaultContext implements Context {
     }
 
     @Override
-    public void header(final String name, final String value) {
+    public void setHeader(final String name, final String value) {
         Objects.requireNonNull(name, "Header name cannot be null");
         Objects.requireNonNull(value, "Header value cannot be null");
         this.ensureNotCommitted();
@@ -135,7 +145,7 @@ public final class DefaultContext implements Context {
     public void text(final String value) {
         Objects.requireNonNull(value, "Text value cannot be null");
         this.ensureNotCommitted();
-        this.response.header("Content-Type", "text/plain; charset=UTF-8");
+        this.setHeader("Content-Type", "text/plain; charset=UTF-8");
         final byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
         this.commit(bytes);
     }
@@ -143,7 +153,7 @@ public final class DefaultContext implements Context {
     @Override
     public void json(final Object value) {
         this.ensureNotCommitted();
-        this.response.header("Content-Type", "application/json");
+        this.setHeader("Content-Type", "application/json");
         final byte[] bytes = this.jsonCodec.serializeToBytes(value);
         this.commit(bytes);
     }

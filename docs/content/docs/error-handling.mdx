@@ -1,0 +1,557 @@
+---
+title: Error Handling
+description: Exception patterns, error responses, and global error handlers
+---
+
+import { Accordion, Accordions } from 'fumadocs-ui/components/accordion';
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Error Handling
+
+Axiom provides structured error handling with global handlers and typed exceptions.
+
+## Global Error Handler
+
+Handle all exceptions in one place with `app.onError()`:
+
+```java
+App app = Axiom.create();
+
+app.onError((ctx, error) -> {
+    if (error instanceof NotFoundException) {
+        ctx.status(404);
+        ctx.json(Map.of("error", error.getMessage()));
+    } else if (error instanceof ValidationException ve) {
+        ctx.status(400);
+        ctx.json(Map.of("error", "Validation failed", "details", ve.getErrors()));
+    } else if (error instanceof UnauthorizedException) {
+        ctx.status(401);
+        ctx.json(Map.of("error", "Unauthorized"));
+    } else {
+        // Log unexpected errors
+        log.error("Unhandled exception", error);
+        ctx.status(500);
+        ctx.json(Map.of("error", "Internal server error"));
+    }
+});
+```
+
+---
+
+## Pattern Matching (Java 21+)
+
+Use pattern matching for cleaner error handling:
+
+```java
+app.onError((ctx, error) -> {
+    switch (error) {
+        case NotFoundException e -> {
+            ctx.status(404);
+            ctx.json(Map.of("error", e.getMessage()));
+        }
+        case ValidationException e -> {
+            ctx.status(400);
+            ctx.json(Map.of("error", "Validation failed", "fields", e.getErrors()));
+        }
+        case UnauthorizedException e -> {
+            ctx.status(401);
+            ctx.json(Map.of("error", e.getMessage()));
+        }
+        case ForbiddenException e -> {
+            ctx.status(403);
+            ctx.json(Map.of("error", e.getMessage()));
+        }
+        default -> {
+            String errorId = UUID.randomUUID().toString().substring(0, 8);
+            log.error("[{}] Unhandled: {}", errorId, error.getMessage(), error);
+            ctx.status(500);
+            ctx.json(Map.of("error", "Internal error", "errorId", errorId));
+        }
+    }
+});
+```
+
+---
+
+## Domain Exception Hierarchy
+
+Create a sealed exception hierarchy for exhaustive handling:
+
+<Accordions>
+  <Accordion title="Base Exception">
+```java
+public sealed class DomainException extends RuntimeException
+    permits NotFoundException, ValidationException,
+            UnauthorizedException, ForbiddenException,
+            ConflictException {
+
+    private final String code;
+
+    protected DomainException(String code, String message) {
+        super(message);
+        this.code = code;
+    }
+
+    public String code() {
+        return code;
+    }
+}
+```
+  </Accordion>
+
+  <Accordion title="NotFoundException (404)">
+```java
+public final class NotFoundException extends DomainException {
+
+    public NotFoundException(String resource, Object id) {
+        super("NOT_FOUND", resource + " with id " + id + " not found");
+    }
+
+    public NotFoundException(String message) {
+        super("NOT_FOUND", message);
+    }
+}
+
+// Usage
+throw new NotFoundException("User", userId);
+// Message: "User with id 123 not found"
+```
+  </Accordion>
+
+  <Accordion title="ValidationException (400)">
+```java
+public final class ValidationException extends DomainException {
+
+    private final Map<String, String> fieldErrors;
+
+    public ValidationException(String message) {
+        super("VALIDATION_ERROR", message);
+        this.fieldErrors = Map.of();
+    }
+
+    public ValidationException(Map<String, String> fieldErrors) {
+        super("VALIDATION_ERROR", "Validation failed");
+        this.fieldErrors = Map.copyOf(fieldErrors);
+    }
+
+    public Map<String, String> getErrors() {
+        return fieldErrors;
+    }
+}
+
+// Usage
+throw new ValidationException(Map.of(
+    "email", "Invalid email format",
+    "age", "Must be at least 18"
+));
+```
+  </Accordion>
+
+  <Accordion title="UnauthorizedException (401)">
+```java
+public final class UnauthorizedException extends DomainException {
+
+    public UnauthorizedException() {
+        super("UNAUTHORIZED", "Authentication required");
+    }
+
+    public UnauthorizedException(String message) {
+        super("UNAUTHORIZED", message);
+    }
+}
+
+// Usage
+throw new UnauthorizedException("Invalid or expired token");
+```
+  </Accordion>
+
+  <Accordion title="ForbiddenException (403)">
+```java
+public final class ForbiddenException extends DomainException {
+
+    public ForbiddenException() {
+        super("FORBIDDEN", "Access denied");
+    }
+
+    public ForbiddenException(String message) {
+        super("FORBIDDEN", message);
+    }
+}
+
+// Usage
+throw new ForbiddenException("Admin access required");
+```
+  </Accordion>
+
+  <Accordion title="ConflictException (409)">
+```java
+public final class ConflictException extends DomainException {
+
+    public ConflictException(String message) {
+        super("CONFLICT", message);
+    }
+}
+
+// Usage
+throw new ConflictException("Email already registered");
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## Typed Error Responses
+
+Create a consistent error response format:
+
+```java
+public record ErrorResponse(
+    String error,
+    String code,
+    String message,
+    Map<String, String> details,
+    String errorId,
+    String timestamp
+) {
+    public static ErrorResponse of(DomainException e) {
+        return new ErrorResponse(
+            e.getClass().getSimpleName().replace("Exception", ""),
+            e.code(),
+            e.getMessage(),
+            Map.of(),
+            null,
+            Instant.now().toString()
+        );
+    }
+
+    public static ErrorResponse of(ValidationException e) {
+        return new ErrorResponse(
+            "ValidationError",
+            e.code(),
+            e.getMessage(),
+            e.getErrors(),
+            null,
+            Instant.now().toString()
+        );
+    }
+
+    public static ErrorResponse internal(String errorId) {
+        return new ErrorResponse(
+            "InternalError",
+            "INTERNAL_ERROR",
+            "An unexpected error occurred",
+            Map.of(),
+            errorId,
+            Instant.now().toString()
+        );
+    }
+}
+```
+
+Use in error handler:
+
+```java
+app.onError((ctx, error) -> {
+    switch (error) {
+        case ValidationException e -> {
+            ctx.status(400);
+            ctx.json(ErrorResponse.of(e));
+        }
+        case NotFoundException e -> {
+            ctx.status(404);
+            ctx.json(ErrorResponse.of(e));
+        }
+        // ... other cases
+        default -> {
+            String errorId = UUID.randomUUID().toString().substring(0, 8);
+            log.error("[{}] {}", errorId, error.getMessage(), error);
+            ctx.status(500);
+            ctx.json(ErrorResponse.internal(errorId));
+        }
+    }
+});
+```
+
+---
+
+## Inline Error Handling
+
+Handle errors directly in route handlers:
+
+<Tabs items={['Early Return', 'orElseThrow', 'Result Pattern']}>
+  <Tab value="Early Return">
+```java
+router.get("/users/:id", ctx -> {
+    String idStr = ctx.param("id");
+    if (idStr == null) {
+        ctx.badRequest("Missing id parameter");
+        return;
+    }
+
+    long id;
+    try {
+        id = Long.parseLong(idStr);
+    } catch (NumberFormatException e) {
+        ctx.badRequest("Invalid id format");
+        return;
+    }
+
+    var user = userRepository.findById(id);
+    if (user.isEmpty()) {
+        ctx.notFound();
+        return;
+    }
+
+    ctx.json(user.get());
+});
+```
+  </Tab>
+  <Tab value="orElseThrow">
+```java
+router.get("/users/:id", ctx -> {
+    long id = Long.parseLong(ctx.paramOrThrow("id"));
+
+    User user = userRepository.findById(id)
+        .orElseThrow(() -> new NotFoundException("User", id));
+
+    ctx.json(user);
+});
+// Exceptions handled by app.onError()
+```
+  </Tab>
+  <Tab value="Result Pattern">
+```java
+sealed interface Result<T> {
+    record Success<T>(T value) implements Result<T> {}
+    record Failure<T>(String error, int status) implements Result<T> {}
+}
+
+router.get("/users/:id", ctx -> {
+    var result = userService.findById(ctx.param("id"));
+
+    switch (result) {
+        case Result.Success<User>(var user) -> ctx.json(user);
+        case Result.Failure<User>(var error, var status) -> {
+            ctx.status(status);
+            ctx.json(Map.of("error", error));
+        }
+    }
+});
+```
+  </Tab>
+</Tabs>
+
+---
+
+## Context Convenience Methods
+
+Axiom provides built-in error response methods:
+
+```java
+// 404 Not Found
+ctx.notFound();
+// Response: { "error": "Not Found" }
+
+// 400 Bad Request with message
+ctx.badRequest("Invalid email format");
+// Response: { "error": "Bad Request", "message": "Invalid email format" }
+
+// Custom error
+ctx.status(422);
+ctx.json(Map.of("error", "Unprocessable Entity", "reason", "..."));
+```
+
+---
+
+## Validation Error Handling
+
+Handle Jakarta Validation exceptions:
+
+```java
+import io.axiom.validation.*;
+
+router.post("/users", ctx -> {
+    var request = ctx.body(CreateUserRequest.class);
+
+    // Option 1: Get result
+    ValidationResult<CreateUserRequest> result = AxiomValidator.validate(request);
+    if (!result.isValid()) {
+        ctx.status(400);
+        ctx.json(Map.of("error", "Validation failed", "fields", result.errors()));
+        return;
+    }
+
+    // Option 2: Throw on failure
+    AxiomValidator.validateOrThrow(request);
+    // Throws ValidationException if invalid
+
+    // Proceed with valid data
+    ctx.json(userService.create(request));
+});
+```
+
+Handle in global error handler:
+
+```java
+app.onError((ctx, error) -> {
+    if (error instanceof io.axiom.validation.ValidationException ve) {
+        ctx.status(400);
+        ctx.json(Map.of(
+            "error", "Validation failed",
+            "details", ve.toErrorMap()  // { "field": "message", ... }
+        ));
+    }
+    // ... other cases
+});
+```
+
+---
+
+## Database Error Handling
+
+Map SQL exceptions to domain exceptions:
+
+```java
+public User create(String name, String email) {
+    try {
+        return Transaction.execute(() ->
+            Jdbc.insertAndReturnKey("INSERT INTO users ...", name, email)
+        );
+    } catch (DataAccessException e) {
+        if (e.getCause() instanceof SQLException sql) {
+            // PostgreSQL unique violation
+            if ("23505".equals(sql.getSQLState())) {
+                throw new ConflictException("Email already exists");
+            }
+            // Foreign key violation
+            if ("23503".equals(sql.getSQLState())) {
+                throw new ValidationException("Referenced resource not found");
+            }
+        }
+        throw e;  // Re-throw unexpected errors
+    }
+}
+```
+
+---
+
+## Development vs Production
+
+Show detailed errors in development, minimal in production:
+
+```java
+private static final boolean IS_DEV =
+    !"production".equals(System.getenv("ENVIRONMENT"));
+
+app.onError((ctx, error) -> {
+    if (error instanceof DomainException de) {
+        // Handle domain errors normally
+        handleDomainError(ctx, de);
+        return;
+    }
+
+    String errorId = UUID.randomUUID().toString().substring(0, 8);
+    log.error("[{}] Unhandled: {}", errorId, error.getMessage(), error);
+
+    ctx.status(500);
+
+    if (IS_DEV) {
+        // Show details in development
+        ctx.json(Map.of(
+            "error", "Internal Server Error",
+            "errorId", errorId,
+            "message", error.getMessage(),
+            "exception", error.getClass().getName(),
+            "stackTrace", Arrays.stream(error.getStackTrace())
+                .limit(10)
+                .map(StackTraceElement::toString)
+                .toList()
+        ));
+    } else {
+        // Minimal info in production
+        ctx.json(Map.of(
+            "error", "Internal Server Error",
+            "errorId", errorId
+        ));
+    }
+});
+```
+
+---
+
+## Error Response Examples
+
+<Accordions>
+  <Accordion title="400 Bad Request">
+```json
+{
+    "error": "ValidationError",
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": {
+        "email": "Invalid email format",
+        "age": "Must be at least 18"
+    },
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+  </Accordion>
+
+  <Accordion title="401 Unauthorized">
+```json
+{
+    "error": "Unauthorized",
+    "code": "UNAUTHORIZED",
+    "message": "Invalid or expired token",
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+  </Accordion>
+
+  <Accordion title="404 Not Found">
+```json
+{
+    "error": "NotFound",
+    "code": "NOT_FOUND",
+    "message": "User with id 123 not found",
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+  </Accordion>
+
+  <Accordion title="409 Conflict">
+```json
+{
+    "error": "Conflict",
+    "code": "CONFLICT",
+    "message": "Email already registered",
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+  </Accordion>
+
+  <Accordion title="500 Internal Server Error">
+```json
+{
+    "error": "InternalError",
+    "code": "INTERNAL_ERROR",
+    "message": "An unexpected error occurred",
+    "errorId": "abc12345",
+    "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+  </Accordion>
+</Accordions>
+
+---
+
+## Best Practices
+
+<Callout type="info" title="Error Handling Guidelines">
+1. **Use domain exceptions** for expected error cases
+2. **Log unexpected errors** with correlation IDs
+3. **Never expose stack traces** in production
+4. **Be consistent** with error response format
+5. **Fail fast** with clear error messages
+</Callout>

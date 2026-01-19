@@ -280,7 +280,17 @@ public interface App {
      * Starts the server on the specified port.
      *
      * <p>
-     * This method blocks until the server is stopped.
+     * <strong>Note:</strong> This method blocks the calling thread until
+     * {@link #stop()} is called or the JVM shuts down. For non-blocking
+     * startup, use a separate thread or virtual thread.
+     *
+     * <pre>{@code
+     * // Blocking (typical for main method)
+     * app.listen(8080);
+     *
+     * // Non-blocking (for testing or embedded use)
+     * Thread.startVirtualThread(() -> app.listen(8080));
+     * }</pre>
      *
      * @param port the port to listen on
      * @throws StartupException if startup fails
@@ -290,6 +300,10 @@ public interface App {
     /**
      * Starts the server on the specified host and port.
      *
+     * <p>
+     * <strong>Note:</strong> This method blocks until shutdown.
+     * See {@link #listen(int)} for details.
+     *
      * @param host the host to bind to
      * @param port the port to listen on
      * @throws StartupException if startup fails
@@ -298,6 +312,10 @@ public interface App {
 
     /**
      * Starts the server with custom configuration.
+     *
+     * <p>
+     * <strong>Note:</strong> This method blocks until shutdown.
+     * See {@link #listen(int)} for details.
      *
      * @param config the server configuration
      * @throws StartupException if startup fails
