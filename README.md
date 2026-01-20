@@ -56,7 +56,7 @@ record User(String name, String email) {}
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.0xtanzim \
   -DarchetypeArtifactId=axiom-quickstart \
-  -DarchetypeVersion=0.1.1 \
+  -DarchetypeVersion=0.1.2 \
   -DgroupId=com.example \
   -DartifactId=my-app \
   -Dversion=1.0.0 \
