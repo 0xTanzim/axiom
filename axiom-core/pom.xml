@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.0xtanzim</groupId>
         <artifactId>axiom-parent</artifactId>
-        <version>0.1.1</version>
+        <version>0.1.2</version>
     </parent>
 
     <artifactId>axiom-core</artifactId>
