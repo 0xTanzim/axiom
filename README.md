@@ -50,14 +50,42 @@ record User(String name, String email) {}
 
 ## Quick Start
 
-### 1. Add Dependency
+### Option 1: Generate a New Project (Recommended)
+
+```bash
+mvn archetype:generate \
+  -DarchetypeGroupId=io.github.0xtanzim \
+  -DarchetypeArtifactId=axiom-quickstart \
+  -DarchetypeVersion=0.1.1 \
+  -DgroupId=com.example \
+  -DartifactId=my-app \
+  -Dversion=1.0.0 \
+  -DinteractiveMode=false
+```
+
+This creates a ready-to-run project:
+```
+my-app/
+├── pom.xml
+└── src/main/java/com/example/App.java
+```
+
+Run it:
+```bash
+cd my-app
+mvn compile exec:java
+# 🚀 Server running at http://localhost:8080
+```
+
+### Option 2: Add to Existing Project
 
 **Maven:**
 ```xml
 <dependency>
     <groupId>io.github.0xtanzim</groupId>
     <artifactId>axiom</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
+    <type>pom</type>
 </dependency>
 
 <properties>
@@ -68,7 +96,7 @@ record User(String name, String email) {}
 
 **Gradle:**
 ```kotlin
-implementation("io.github.0xtanzim:axiom:0.1.0")
+implementation("io.github.0xtanzim:axiom:0.1.1")
 
 java {
     toolchain {
@@ -77,7 +105,7 @@ java {
 }
 ```
 
-### 2. Create Your App
+### Create Your App
 
 ```java
 // src/main/java/App.java
@@ -95,7 +123,7 @@ public class App {
 }
 ```
 
-### 3. Run the Server
+### Run the Server
 
 **Maven:**
 ```bash
@@ -107,13 +135,7 @@ mvn compile exec:java -Dexec.mainClass="App"
 ./gradlew run
 ```
 
-**Direct Java:**
-```bash
-javac -cp axiom.jar App.java
-java -cp .:axiom.jar App
-```
-
-### 4. Test It
+### Test It
 
 ```bash
 curl http://localhost:8080

@@ -121,7 +121,7 @@ Add these secrets:
 
 **Current Structure:**
 ```
-axiom-parent (0.1.0-SNAPSHOT)  ← Parent POM
+axiom-parent (0.1.1-SNAPSHOT)  ← Parent POM
 ├── axiom-core
 ├── axiom-persistence
 ├── axiom-persistence-processor
@@ -130,31 +130,31 @@ axiom-parent (0.1.0-SNAPSHOT)  ← Parent POM
 
 **All modules inherit the parent version automatically!**
 
-When you run `mvn versions:set -DnewVersion=0.1.0`:
-- Parent version changes to 0.1.0
-- ALL child modules change to 0.1.0
-- All internal dependencies update to 0.1.0
+When you run `mvn versions:set -DnewVersion=0.1.1`:
+- Parent version changes to 0.1.1
+- ALL child modules change to 0.1.1
+- All internal dependencies update to 0.1.1
 
 ### Step 6: Release Process
 
 **Option A: Manual Trigger (Recommended for first release)**
 
 1. Go to: Actions → Release → Run workflow
-2. Enter version: `0.1.0`
+2. Enter version: `0.1.1`
 3. Click "Run workflow"
 
 **Option B: Git Tag (Automated)**
 
 ```bash
 # Update version locally first
-mvn versions:set -DnewVersion=0.1.0 -DgenerateBackupPoms=false
+mvn versions:set -DnewVersion=0.1.1 -DgenerateBackupPoms=false
 git add .
-git commit -m "chore: release 0.1.0"
+git commit -m "chore: release 0.1.1"
 
 # Create and push tag
-git tag -a v0.1.0 -m "Release v0.1.0"
+git tag -a v0.1.1 -m "Release v0.1.1"
 git push origin main
-git push origin v0.1.0
+git push origin v0.1.1
 ```
 
 The tag push triggers:
@@ -173,7 +173,7 @@ Users can then add:
 <dependency>
     <groupId>io.github.0xtanzim</groupId>
     <artifactId>axiom</artifactId>
-    <version>0.1.0</version>
+    <version>0.1.1</version>
 </dependency>
 ```
 
@@ -279,7 +279,7 @@ mvn clean verify
 mvn test
 
 # Set release version (all modules)
-mvn versions:set -DnewVersion=0.1.0 -DgenerateBackupPoms=false
+mvn versions:set -DnewVersion=0.1.1 -DgenerateBackupPoms=false
 
 # Set next SNAPSHOT version
 mvn versions:set -DnewVersion=0.2.0-SNAPSHOT -DgenerateBackupPoms=false

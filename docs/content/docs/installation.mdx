@@ -1,0 +1,385 @@
+---
+title: Manual Installation
+description: Complete guide to manually set up an Axiom project from scratch
+---
+
+import { Callout } from 'fumadocs-ui/components/callout';
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs';
+
+# Manual Installation
+
+This guide shows how to manually set up an Axiom project without using the archetype.
+
+<Callout type="info">
+**Quick start:** Use the [Maven archetype](/docs/getting-started#quick-start-with-maven-archetype) for automatic setup.
+</Callout>
+
+## Prerequisites
+
+- **Java 25** or later ([Download](https://adoptium.net/))
+- **Maven 3.9+** or **Gradle 8.5+**
+
+---
+
+## Maven Setup
+
+### 1. Create Project Structure
+
+```bash
+mkdir my-axiom-app
+cd my-axiom-app
+mkdir -p src/main/java/com/example
+mkdir -p src/main/resources
+```
+
+### 2. Create pom.xml
+
+Create `pom.xml` in the project root:
+
+```xml title="pom.xml"
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Your Project Coordinates -->
+    <groupId>com.example</groupId>
+    <artifactId>my-axiom-app</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>My Axiom App</name>
+    <description>An Axiom web application</description>
+
+    <!-- Java 25 Configuration -->
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <axiom.version>0.1.1</axiom.version>
+    </properties>
+
+    <!-- Dependencies -->
+    <dependencies>
+        <!-- Axiom Framework (THE ONLY dependency you need) -->
+        <dependency>
+            <groupId>io.github.0xtanzim</groupId>
+            <artifactId>axiom</artifactId>
+            <version>${axiom.version}</version>
+            <type>pom</type>
+        </dependency>
+    </dependencies>
+
+    <!-- Build Configuration -->
+    <build>
+        <plugins>
+            <!-- Java Compiler -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>25</source>
+                    <target>25</target>
+                    <compilerArgs>
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- Run with: mvn exec:java -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <mainClass>com.example.App</mainClass>
+                </configuration>
+            </plugin>
+
+            <!-- Package as executable JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.example.App</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
+<Callout type="warn" title="Important">
+Notice `<type>pom</type>` for the Axiom dependency. This is required because `axiom` is a meta package.
+</Callout>
+
+### 3. Create Application Class
+
+Create `src/main/java/com/example/App.java`:
+
+```java title="src/main/java/com/example/App.java"
+package com.example;
+
+import io.axiom.core.app.Axiom;
+import io.axiom.core.routing.Router;
+import java.util.Map;
+
+public class App {
+    public static void main(String[] args) {
+        Router router = new Router();
+
+        // Hello World
+        router.get("/", ctx -> ctx.text("Hello, Axiom!"));
+
+        // JSON endpoint
+        router.get("/api/status", ctx ->
+            ctx.json(Map.of(
+                "status", "running",
+                "framework", "Axiom"
+            ))
+        );
+
+        // Path parameters
+        router.get("/users/:id", ctx -> {
+            String id = ctx.param("id");
+            ctx.json(Map.of("id", id, "name", "User " + id));
+        });
+
+        // Start server
+        Axiom.start(router, 8080);
+        System.out.println("🚀 Server running at http://localhost:8080");
+    }
+}
+```
+
+### 4. Create Configuration (Optional)
+
+Create `src/main/resources/application.properties`:
+
+```properties title="src/main/resources/application.properties"
+# Server Configuration
+server.host=0.0.0.0
+server.port=8080
+
+# Application
+app.name=my-axiom-app
+app.debug=false
+```
+
+### 5. Run Your Application
+
+```bash
+# Compile and run
+mvn compile exec:java
+
+# Or build JAR and run
+mvn package
+java -jar target/my-axiom-app-1.0.0-SNAPSHOT.jar
+```
+
+---
+
+## Gradle Setup
+
+### 1. Create Project Structure
+
+```bash
+mkdir my-axiom-app
+cd my-axiom-app
+mkdir -p src/main/java/com/example
+mkdir -p src/main/resources
+```
+
+### 2. Create build.gradle.kts
+
+<Tabs items={['Kotlin DSL', 'Groovy DSL']}>
+  <Tab value="Kotlin DSL">
+```kotlin title="build.gradle.kts"
+plugins {
+    java
+    application
+}
+
+group = "com.example"
+version = "1.0.0-SNAPSHOT"
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Axiom Framework
+    implementation("io.github.0xtanzim:axiom:0.1.1")
+}
+
+application {
+    mainClass.set("com.example.App")
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("--enable-preview")
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs("--enable-preview")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "com.example.App"
+    }
+    // Create fat JAR
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+}
+```
+  </Tab>
+  <Tab value="Groovy DSL">
+```groovy title="build.gradle"
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.example'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Axiom Framework
+    implementation 'io.github.0xtanzim:axiom:0.1.1'
+}
+
+application {
+    mainClass = 'com.example.App'
+}
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << '--enable-preview'
+}
+
+tasks.withType(JavaExec) {
+    jvmArgs '--enable-preview'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'com.example.App'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+```
+  </Tab>
+</Tabs>
+
+### 3. Create Application Class
+
+Same as Maven example above: `src/main/java/com/example/App.java`
+
+### 4. Run Your Application
+
+```bash
+# Run directly
+./gradlew run
+
+# Or build JAR and run
+./gradlew build
+java -jar build/libs/my-axiom-app-1.0.0-SNAPSHOT.jar
+```
+
+---
+
+## Project Structure
+
+After setup, your project should look like this:
+
+```
+my-axiom-app/
+├── pom.xml (or build.gradle.kts)
+└── src/
+    └── main/
+        ├── java/
+        │   └── com/
+        │       └── example/
+        │           └── App.java
+        └── resources/
+            └── application.properties
+```
+
+---
+
+## Minimal Dependencies
+
+Axiom is designed to be minimal. The `axiom` meta package brings:
+
+| Module | Size | Purpose |
+|--------|------|---------|
+| `axiom-core` | ~100KB | Routing, middleware, lifecycle, config, DI, server |
+| `axiom-persistence` | ~50KB | Optional database integration |
+
+**Total:** ~150KB of framework code + SLF4J logging.
+
+---
+
+## Common Issues
+
+### "Could not find artifact axiom:jar"
+
+**Solution:** Add `<type>pom</type>` to the dependency:
+```xml
+<dependency>
+    <groupId>io.github.0xtanzim</groupId>
+    <artifactId>axiom</artifactId>
+    <version>0.1.1</version>
+    <type>pom</type>  <!-- Required! -->
+</dependency>
+```
+
+### "Unsupported class file version"
+
+**Solution:** Ensure you're using Java 25:
+```bash
+java -version  # Should show "openjdk version 25"
+```
+
+---
+
+## Next Steps
+
+- **[Getting Started Guide](/docs/getting-started)** — Quick start tutorial
+- **[Routing](/docs/routing)** — Define routes and handlers
+- **[Configuration](/docs/config)** — Environment-based config
+- **[Server Configuration](/docs/server)** — Running and deploying

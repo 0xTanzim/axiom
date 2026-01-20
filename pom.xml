@@ -52,6 +52,9 @@
 
         <!-- THE package users add -->
         <module>axiom-framework</module>
+
+        <!-- Project scaffolding archetype -->
+        <module>axiom-archetype</module>
     </modules>
 
     <properties>
