@@ -16,8 +16,143 @@ This guide shows how to manually set up an Axiom project without using the arche
 
 ## Prerequisites
 
-- **Java 25** or later ([Download](https://adoptium.net/))
-- **Maven 3.9+** or **Gradle 8.5+**
+### Java 21 or Later
+
+<Tabs items={['Windows', 'macOS', 'Linux']}>
+  <Tab value="Windows">
+**Download and Install:**
+1. Download [Adoptium OpenJDK 21+](https://adoptium.net/temurin/releases/?os=windows&arch=x64&package=jdk&version=21) (Windows x64 MSI installer)
+2. Run the installer
+3. ✅ Check "Set JAVA_HOME" and "Add to PATH" during installation
+
+**Verify:**
+```cmd
+java -version
+# Should show: openjdk version "21" or higher
+```
+
+**Manual PATH setup (if needed):**
+```cmd
+setx JAVA_HOME "C:\Program Files\Eclipse Adoptium\jdk-21.0.x"
+setx PATH "%PATH%;%JAVA_HOME%\bin"
+```
+  </Tab>
+  <Tab value="macOS">
+**Option 1: Homebrew (Recommended)**
+```bash
+brew install openjdk@21
+```
+
+**Option 2: SDKMAN!**
+```bash
+curl -s "https://get.sdkman.io" | bash
+sdk install java 21-tem
+```
+
+**Option 3: Direct Download**
+1. Download [Adoptium OpenJDK 21+](https://adoptium.net/temurin/releases/?os=mac&arch=x64&package=jdk&version=21) (macOS PKG)
+2. Run the installer
+
+**Verify:**
+```bash
+java -version
+# Should show: openjdk version "21" or higher
+```
+  </Tab>
+  <Tab value="Linux">
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install openjdk-21-jdk
+```
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install java-21-openjdk-devel
+```
+
+**SDKMAN! (Any Linux)**
+```bash
+curl -s "https://get.sdkman.io" | bash
+sdk install java 21-tem
+```
+
+**Verify:**
+```bash
+java -version
+# Should show: openjdk version "21" or higher
+```
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+- **Minimum:** Java 21 (virtual thread support)
+- **Recommended:** Java 25 LTS
+</Callout>
+
+### Maven or Gradle
+
+<Tabs items={['Maven', 'Gradle']}>
+  <Tab value="Maven">
+**Windows:**
+1. Download [Maven 3.9+](https://maven.apache.org/download.cgi) (ZIP)
+2. Extract to `C:\Program Files\Apache\maven`
+3. Add to PATH:
+   ```cmd
+   setx PATH "%PATH%;C:\Program Files\Apache\maven\bin"
+   ```
+
+**macOS (Homebrew):**
+```bash
+brew install maven
+```
+
+**Linux:**
+```bash
+# Ubuntu/Debian
+sudo apt install maven
+
+# Fedora/RHEL
+sudo dnf install maven
+```
+
+**Verify:**
+```bash
+mvn -version
+# Should show: Apache Maven 3.9.x or higher
+```
+  </Tab>
+  <Tab value="Gradle">
+**Windows:**
+1. Download [Gradle 8.5+](https://gradle.org/releases/) (ZIP)
+2. Extract to `C:\Gradle`
+3. Add to PATH:
+   ```cmd
+   setx PATH "%PATH%;C:\Gradle\bin"
+   ```
+
+**macOS (Homebrew):**
+```bash
+brew install gradle
+```
+
+**Linux:**
+```bash
+# SDKMAN! (recommended)
+sdk install gradle
+
+# Or manual download
+curl -s "https://get.sdkman.io" | bash
+sdk install gradle 8.5
+```
+
+**Verify:**
+```bash
+gradle -version
+# Should show: Gradle 8.5 or higher
+```
+  </Tab>
+</Tabs>
 
 ---
 
@@ -25,12 +160,32 @@ This guide shows how to manually set up an Axiom project without using the arche
 
 ### 1. Create Project Structure
 
+<Tabs items={['Windows (PowerShell)', 'Windows (CMD)', 'macOS/Linux']}>
+  <Tab value="Windows (PowerShell)">
+```powershell
+mkdir my-axiom-app
+cd my-axiom-app
+mkdir -p src\main\java\com\example
+mkdir -p src\main\resources
+```
+  </Tab>
+  <Tab value="Windows (CMD)">
+```cmd
+mkdir my-axiom-app
+cd my-axiom-app
+mkdir src\main\java\com\example
+mkdir src\main\resources
+```
+  </Tab>
+  <Tab value="macOS/Linux">
 ```bash
 mkdir my-axiom-app
 cd my-axiom-app
 mkdir -p src/main/java/com/example
 mkdir -p src/main/resources
 ```
+  </Tab>
+</Tabs>
 
 ### 2. Create pom.xml
 
@@ -53,12 +208,12 @@ Create `pom.xml` in the project root:
     <name>My Axiom App</name>
     <description>An Axiom web application</description>
 
-    <!-- Java 25 Configuration -->
+    <!-- Java 21 Configuration (minimum required) -->
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.source>25</maven.compiler.source>
-        <maven.compiler.target>25</maven.compiler.target>
-        <axiom.version>0.1.1</axiom.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <axiom.version>0.1.3</axiom.version>
     </properties>
 
     <!-- Dependencies -->
@@ -81,8 +236,8 @@ Create `pom.xml` in the project root:
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <source>25</source>
-                    <target>25</target>
+                    <source>21</source>
+                    <target>21</target>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
                     </compilerArgs>
@@ -175,7 +330,7 @@ Create `src/main/resources/application.properties`:
 
 ```properties title="src/main/resources/application.properties"
 # Server Configuration
-server.host=0.0.0.0
+server.host=0.1.3.0
 server.port=8080
 
 # Application
@@ -185,14 +340,38 @@ app.debug=false
 
 ### 5. Run Your Application
 
+<Tabs items={['Maven', 'Executable JAR']}>
+  <Tab value="Maven">
+**All Platforms:**
 ```bash
 # Compile and run
 mvn compile exec:java
 
-# Or build JAR and run
+# Server will start at http://localhost:8080
+```
+  </Tab>
+  <Tab value="Executable JAR">
+**Build:**
+```bash
 mvn package
+```
+
+**Run:**
+
+<Tabs items={['Windows', 'macOS/Linux']}>
+  <Tab value="Windows">
+```cmd
+java -jar target\my-axiom-app-1.0.0-SNAPSHOT.jar
+```
+  </Tab>
+  <Tab value="macOS/Linux">
+```bash
 java -jar target/my-axiom-app-1.0.0-SNAPSHOT.jar
 ```
+  </Tab>
+</Tabs>
+  </Tab>
+</Tabs>
 
 ---
 
@@ -200,12 +379,32 @@ java -jar target/my-axiom-app-1.0.0-SNAPSHOT.jar
 
 ### 1. Create Project Structure
 
+<Tabs items={['Windows (PowerShell)', 'Windows (CMD)', 'macOS/Linux']}>
+  <Tab value="Windows (PowerShell)">
+```powershell
+mkdir my-axiom-app
+cd my-axiom-app
+mkdir -p src\main\java\com\example
+mkdir -p src\main\resources
+```
+  </Tab>
+  <Tab value="Windows (CMD)">
+```cmd
+mkdir my-axiom-app
+cd my-axiom-app
+mkdir src\main\java\com\example
+mkdir src\main\resources
+```
+  </Tab>
+  <Tab value="macOS/Linux">
 ```bash
 mkdir my-axiom-app
 cd my-axiom-app
 mkdir -p src/main/java/com/example
 mkdir -p src/main/resources
 ```
+  </Tab>
+</Tabs>
 
 ### 2. Create build.gradle.kts
 
@@ -222,7 +421,7 @@ version = "1.0.0-SNAPSHOT"
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(25))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -232,7 +431,7 @@ repositories {
 
 dependencies {
     // Axiom Framework
-    implementation("io.github.0xtanzim:axiom:0.1.1")
+    implementation("io.github.0xtanzim:axiom:0.1.3")
 }
 
 application {
@@ -269,7 +468,7 @@ version = '1.0.0-SNAPSHOT'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -279,7 +478,7 @@ repositories {
 
 dependencies {
     // Axiom Framework
-    implementation 'io.github.0xtanzim:axiom:0.1.1'
+    implementation 'io.github.0xtanzim:axiom:0.1.3'
 }
 
 application {
@@ -311,6 +510,18 @@ Same as Maven example above: `src/main/java/com/example/App.java`
 
 ### 4. Run Your Application
 
+<Tabs items={['Windows', 'macOS/Linux']}>
+  <Tab value="Windows">
+```cmd
+# Run directly
+gradlew.bat run
+
+# Or build JAR and run
+gradlew.bat build
+java -jar build\libs\my-axiom-app-1.0.0-SNAPSHOT.jar
+```
+  </Tab>
+  <Tab value="macOS/Linux">
 ```bash
 # Run directly
 ./gradlew run
@@ -319,6 +530,8 @@ Same as Maven example above: `src/main/java/com/example/App.java`
 ./gradlew build
 java -jar build/libs/my-axiom-app-1.0.0-SNAPSHOT.jar
 ```
+  </Tab>
+</Tabs>
 
 ---
 
@@ -356,6 +569,54 @@ Axiom is designed to be minimal. The `axiom` meta package brings:
 
 ## Common Issues
 
+### "SLF4J: No SLF4J providers were found"
+
+**Warning shown:**
+```
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+```
+
+**Cause:** Axiom uses SLF4J for logging but doesn't force a specific implementation.
+
+**Solution:** Add a logging implementation:
+
+<Tabs items={['slf4j-simple (easiest)', 'Logback (production)', 'Log4j2']}>
+  <Tab value="slf4j-simple (easiest)">
+```xml title="pom.xml"
+<dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-simple</artifactId>
+    <version>2.0.16</version>
+</dependency>
+```
+  </Tab>
+  <Tab value="Logback (production)">
+```xml title="pom.xml"
+<dependency>
+    <groupId>ch.qos.logback</groupId>
+    <artifactId>logback-classic</artifactId>
+    <version>1.5.12</version>
+</dependency>
+```
+  </Tab>
+  <Tab value="Log4j2">
+```xml title="pom.xml"
+<dependency>
+    <groupId>org.apache.logging.log4j</groupId>
+    <artifactId>log4j-slf4j2-impl</artifactId>
+    <version>2.24.3</version>
+</dependency>
+```
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+**Recommended for development:** Use `slf4j-simple` — no configuration needed!
+</Callout>
+
+---
+
 ### "Could not find artifact axiom:jar"
 
 **Solution:** Add `<type>pom</type>` to the dependency:
@@ -363,16 +624,16 @@ Axiom is designed to be minimal. The `axiom` meta package brings:
 <dependency>
     <groupId>io.github.0xtanzim</groupId>
     <artifactId>axiom</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.3</version>
     <type>pom</type>  <!-- Required! -->
 </dependency>
 ```
 
 ### "Unsupported class file version"
 
-**Solution:** Ensure you're using Java 25:
+**Solution:** Ensure you're using Java 21 or later:
 ```bash
-java -version  # Should show "openjdk version 25"
+java -version  # Should show "openjdk version 21" or higher
 ```
 
 ---

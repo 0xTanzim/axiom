@@ -3,7 +3,7 @@
 ## Project Context
 
 Project name: **Axiom**
-Language: **Java 25 (LTS)**
+Language: **Java 21+ (Java 25 LTS recommended)**
 
 Axiom is a **modern, DX-first Java framework** built for explicitness, composability, and long-term architectural clarity.
 
@@ -42,8 +42,9 @@ Implementation follows **RFC intent**, never convenience or habit.
 
 ### 1. Java Version & Language Usage
 
-* Target **Java 25 (LTS)** exclusively
-* No backward compatibility constraints
+* **Minimum:** Java 21 (virtual thread support required)
+* **Target:** Java 25 LTS (recommended)
+* Compile target: Java 21 for maximum compatibility
 * Use modern Java features deliberately:
 
   * records (for immutable data)

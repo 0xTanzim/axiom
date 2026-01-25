@@ -52,14 +52,39 @@ record User(String name, String email) {}
 
 ### Option 1: Generate a New Project (Recommended)
 
+**Linux/macOS:**
 ```bash
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.0xtanzim \
   -DarchetypeArtifactId=axiom-quickstart \
-  -DarchetypeVersion=0.1.1 \
+  -DarchetypeVersion=0.1.3 \
   -DgroupId=com.example \
   -DartifactId=my-app \
   -Dversion=1.0.0 \
+  -DinteractiveMode=false
+```
+
+**Windows (CMD):**
+```cmd
+mvn archetype:generate ^
+  -DarchetypeGroupId=io.github.0xtanzim ^
+  -DarchetypeArtifactId=axiom-quickstart ^
+  -DarchetypeVersion=0.1.3 ^
+  -DgroupId=com.example ^
+  -DartifactId=my-app ^
+  -Dversion=1.0.0 ^
+  -DinteractiveMode=false
+```
+
+**Windows (PowerShell):**
+```powershell
+mvn archetype:generate `
+  -DarchetypeGroupId=io.github.0xtanzim `
+  -DarchetypeArtifactId=axiom-quickstart `
+  -DarchetypeVersion=0.1.3 `
+  -DgroupId=com.example `
+  -DartifactId=my-app `
+  -Dversion=1.0.0 `
   -DinteractiveMode=false
 ```
 
@@ -84,19 +109,19 @@ mvn compile exec:java
 <dependency>
     <groupId>io.github.0xtanzim</groupId>
     <artifactId>axiom</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.3</version>
     <type>pom</type>
 </dependency>
 
 <properties>
-    <maven.compiler.source>25</maven.compiler.source>
-    <maven.compiler.target>25</maven.compiler.target>
+    <maven.compiler.source>21</maven.compiler.source>
+    <maven.compiler.target>21</maven.compiler.target>
 </properties>
 ```
 
 **Gradle:**
 ```kotlin
-implementation("io.github.0xtanzim:axiom:0.1.1")
+implementation("io.github.0xtanzim:axiom:0.1.3")
 
 java {
     toolchain {
@@ -137,7 +162,20 @@ mvn compile exec:java -Dexec.mainClass="App"
 
 ### Test It
 
+**Linux/macOS:**
 ```bash
+curl http://localhost:8080
+# Hello, Axiom!
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri http://localhost:8080
+# Or use: curl http://localhost:8080 (if curl alias is available)
+```
+
+**Windows (CMD) - requires curl.exe (Windows 10+):**
+```cmd
 curl http://localhost:8080
 # Hello, Axiom!
 ```
@@ -161,8 +199,8 @@ Axiom.start(router, 8080);
 
 ```java
 // Bind to specific host
-Axiom.start(router, "127.0.0.1", 8080);  // localhost only
-Axiom.start(router, "0.0.0.0", 8080);    // all interfaces
+Axiom.start(router, "127.0.1.3", 8080);  // localhost only
+Axiom.start(router, "0.1.3.0", 8080);    // all interfaces
 ```
 
 ### Full Control
@@ -209,7 +247,7 @@ app.route(router);
 
 // Custom configuration
 app.listen(ServerConfig.builder()
-    .host("0.0.0.0")
+    .host("0.1.3.0")
     .port(8080)
     .readTimeout(Duration.ofSeconds(30))
     .writeTimeout(Duration.ofSeconds(30))
@@ -222,7 +260,7 @@ app.listen(ServerConfig.builder()
 
 ```properties
 # application.properties
-server.host=0.0.0.0
+server.host=0.1.3.0
 server.port=8080
 ```
 

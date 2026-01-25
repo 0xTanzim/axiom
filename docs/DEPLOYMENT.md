@@ -137,25 +137,57 @@ When you run `mvn versions:set -DnewVersion=0.1.1`:
 
 ### Step 6: Release Process
 
-**Option A: Manual Trigger (Recommended for first release)**
-
-1. Go to: Actions → Release → Run workflow
-2. Enter version: `0.1.1`
-3. Click "Run workflow"
-
-**Option B: Git Tag (Automated)**
+**Option A: Automated Script (Recommended)**
 
 ```bash
-# Update version locally first
-mvn versions:set -DnewVersion=0.1.1 -DgenerateBackupPoms=false
-git add .
-git commit -m "chore: release 0.1.1"
+# Updates all version references automatically
+./scripts/update-version-references.sh 0.1.3
 
-# Create and push tag
-git tag -a v0.1.1 -m "Release v0.1.1"
-git push origin main
-git push origin v0.1.1
+# Review changes
+git diff
+
+# Commit and tag
+git add .
+git commit -m "chore: release 0.1.3"
+git tag -a v0.1.3 -m "Release v0.1.3"
+git push origin main && git push origin v0.1.3
 ```
+
+The script automatically updates:
+- All pom.xml files (via `mvn versions:set`)
+- README.md examples
+- Documentation (docs/*.mdx)
+- Archetype templates and examples
+
+**Option B: Manual Process**
+
+If you prefer manual control:
+
+```bash
+# 1. Update POMs
+mvn versions:set -DnewVersion=0.1.3 -DgenerateBackupPoms=false
+
+# 2. Update docs and examples manually
+# - README.md
+# - docs/content/docs/*.mdx
+# - axiom-archetype/pom.xml (usage example)
+# - axiom-archetype/src/main/resources/archetype-resources/pom.xml
+
+# 3. Rebuild archetype
+mvn clean install -pl axiom-archetype -DskipTests
+
+# 4. Commit and tag
+git add .
+git commit -m "chore: release 0.1.3"
+git tag -a v0.1.3 -m "Release v0.1.3"
+git push origin main && git push origin v0.1.3
+```
+
+**Option C: Manual Trigger (GitHub Actions UI)**
+
+1. Go to: Actions → Release → Run workflow
+2. Enter version: `0.1.3`
+3. Click "Run workflow"
 
 The tag push triggers:
 1. CI build and test
@@ -235,6 +267,38 @@ git push origin main
 - Signs with GPG
 - Deploys to Maven Central
 - Creates GitHub Release
+
+---
+
+## Version Management
+
+### The Version Mismatch Problem
+
+**Problem:** `mvn versions:set` only updates `<version>` tags in POMs, NOT:
+- Comments in POMs (like usage examples)
+- Documentation files (README.md, *.mdx)
+- Archetype templates
+- Code examples in docs
+
+**Impact:** After releasing 0.1.2, users might see:
+- README says "use version 0.1.1"
+- Archetype pom.xml shows `-DarchetypeVersion=0.1.1`
+- Docs show dependency examples with 0.1.1
+- But Maven Central only has 0.1.2!
+
+**Solution:** Always use `./scripts/update-version-references.sh` to update ALL version references atomically.
+
+### Version Update Checklist
+
+Before releasing, ensure these files have correct version:
+
+- [ ] All pom.xml `<version>` tags (automated by mvn versions:set)
+- [ ] README.md dependency examples
+- [ ] docs/content/docs/*.mdx (all documentation)
+- [ ] axiom-archetype/pom.xml (usage example in description)
+- [ ] axiom-archetype/.../archetype-resources/pom.xml (template)
+
+Run: `grep -r "0\.1\.[0-9]" README.md docs/content/docs/*.mdx axiom-archetype/ | grep -v target | grep -v .flattened`
 
 ---
 

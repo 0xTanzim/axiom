@@ -33,6 +33,7 @@ auth-api/
 
 ## Running
 
+**All Platforms:**
 ```bash
 cd examples/auth-api
 mvn compile exec:java
@@ -44,7 +45,20 @@ Server starts at `http://localhost:8080`
 
 ### Health
 
+**Linux/macOS:**
 ```bash
+# Health check
+curl http://localhost:8080/health
+
+# Readiness probe
+curl http://localhost:8080/health/ready
+
+# Liveness probe
+curl http://localhost:8080/health/live
+```
+
+**Windows (PowerShell):**
+```powershell
 # Health check
 curl http://localhost:8080/health
 
@@ -57,6 +71,7 @@ curl http://localhost:8080/health/live
 
 ### Authentication
 
+**Linux/macOS:**
 ```bash
 # Register new user
 curl -X POST http://localhost:8080/auth/register \
@@ -77,8 +92,30 @@ curl -X POST http://localhost:8080/auth/logout \
   -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
+**Windows (PowerShell):**
+```powershell
+# Register new user
+Invoke-RestMethod -Method POST -Uri http://localhost:8080/auth/register `
+  -ContentType "application/json" `
+  -Body '{"username":"john","email":"john@example.com","password":"secret123"}'
+
+# Login (returns token)
+Invoke-RestMethod -Method POST -Uri http://localhost:8080/auth/login `
+  -ContentType "application/json" `
+  -Body '{"username":"john","password":"secret123"}'
+
+# Get current user (requires token)
+Invoke-RestMethod -Uri http://localhost:8080/auth/me `
+  -Headers @{"Authorization"="Bearer YOUR_TOKEN_HERE"}
+
+# Logout
+Invoke-RestMethod -Method POST -Uri http://localhost:8080/auth/logout `
+  -Headers @{"Authorization"="Bearer YOUR_TOKEN_HERE"}
+```
+
 ### Users
 
+**Linux/macOS:**
 ```bash
 # List all users
 curl http://localhost:8080/users
@@ -91,6 +128,24 @@ curl http://localhost:8080/users/by-username/demo
 
 # Delete user
 curl -X DELETE http://localhost:8080/users/123456789
+
+# User statistics
+curl http://localhost:8080/users/stats
+```
+
+**Windows (PowerShell):**
+```powershell
+# List all users
+curl http://localhost:8080/users
+
+# Get user by ID
+curl http://localhost:8080/users/123456789
+
+# Get user by username
+curl http://localhost:8080/users/by-username/demo
+
+# Delete user
+curl -Method DELETE http://localhost:8080/users/123456789
 
 # User statistics
 curl http://localhost:8080/users/stats
@@ -165,8 +220,16 @@ A demo user is pre-created:
 - Username: `demo`
 - Password: `demo123`
 
+**Linux/macOS:**
 ```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"demo","password":"demo123"}'
+```
+
+**Windows (PowerShell):**
+```powershell
+Invoke-RestMethod -Method POST -Uri http://localhost:8080/auth/login `
+  -ContentType "application/json" `
+  -Body '{"username":"demo","password":"demo123"}'
 ```

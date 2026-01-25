@@ -33,10 +33,26 @@ public class HelloApp {
 ```
 
 Run it and test:
+
+<Tabs items={['Linux/macOS', 'Windows (PowerShell)', 'Windows (CMD)']}>
+  <Tab value="Linux/macOS">
 ```bash
 curl http://localhost:3000
 # Hello, World!
 ```
+  </Tab>
+  <Tab value="Windows (PowerShell)">
+```powershell
+curl http://localhost:3000
+# Or: Invoke-WebRequest -Uri http://localhost:3000
+```
+  </Tab>
+  <Tab value="Windows (CMD)">
+```cmd
+curl http://localhost:3000
+```
+  </Tab>
+</Tabs>
 
 ---
 
@@ -297,35 +313,83 @@ public final class ValidationException extends DomainException {
   </Accordion>
 
   <Accordion title="Test with cURL">
+<Tabs items={['Linux/macOS', 'Windows (PowerShell)', 'Windows (CMD)']}>
+  <Tab value="Linux/macOS">
 ```bash
 # Create user
 curl -X POST http://localhost:3000/api/users \
   -H "Content-Type: application/json" \
   -d '{"name": "John Doe", "email": "john@example.com"}'
-# {"id":1,"name":"John Doe","email":"john@example.com",...}
 
 # List users
 curl http://localhost:3000/api/users
-# [{"id":1,...}]
 
 # Get user
 curl http://localhost:3000/api/users/1
-# {"id":1,"name":"John Doe",...}
 
 # Update user
 curl -X PUT http://localhost:3000/api/users/1 \
   -H "Content-Type: application/json" \
   -d '{"name": "John Smith"}'
-# {"id":1,"name":"John Smith",...}
 
 # Delete user
 curl -X DELETE http://localhost:3000/api/users/1
-# (204 No Content)
 
 # Get deleted user
 curl http://localhost:3000/api/users/1
-# {"error":"User not found: 1"}
 ```
+  </Tab>
+  <Tab value="Windows (PowerShell)">
+```powershell
+# Create user
+curl -X POST http://localhost:3000/api/users `
+  -H "Content-Type: application/json" `
+  -d '{"name": "John Doe", "email": "john@example.com"}'
+
+# List users
+curl http://localhost:3000/api/users
+
+# Get user
+curl http://localhost:3000/api/users/1
+
+# Update user
+curl -X PUT http://localhost:3000/api/users/1 `
+  -H "Content-Type: application/json" `
+  -d '{"name": "John Smith"}'
+
+# Delete user
+curl -Method DELETE http://localhost:3000/api/users/1
+
+# Get deleted user
+curl http://localhost:3000/api/users/1
+```
+  </Tab>
+  <Tab value="Windows (CMD)">
+```cmd
+REM Create user
+curl -X POST http://localhost:3000/api/users ^
+  -H "Content-Type: application/json" ^
+  -d "{\"name\": \"John Doe\", \"email\": \"john@example.com\"}"
+
+REM List users
+curl http://localhost:3000/api/users
+
+REM Get user
+curl http://localhost:3000/api/users/1
+
+REM Update user
+curl -X PUT http://localhost:3000/api/users/1 ^
+  -H "Content-Type: application/json" ^
+  -d "{\"name\": \"John Smith\"}"
+
+REM Delete user
+curl -X DELETE http://localhost:3000/api/users/1
+
+REM Get deleted user
+curl http://localhost:3000/api/users/1
+```
+  </Tab>
+</Tabs>
   </Accordion>
 </Accordions>
 
@@ -584,28 +648,68 @@ public class ProtectedRoutes {
   </Accordion>
 
   <Accordion title="Test Auth Flow">
+<Tabs items={['Linux/macOS', 'Windows (PowerShell)', 'Windows (CMD)']}>
+  <Tab value="Linux/macOS">
 ```bash
 # Register
 curl -X POST http://localhost:3000/auth/register \
   -H "Content-Type: application/json" \
   -d '{"name":"John","email":"john@example.com","password":"secret123"}'
-# {"token":"eyJhbG...","user":{"id":1,"name":"John",...}}
 
 # Login
 curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"john@example.com","password":"secret123"}'
-# {"token":"eyJhbG...","user":{...}}
 
 # Access protected route
 curl http://localhost:3000/api/protected/me \
   -H "Authorization: Bearer eyJhbG..."
-# {"userId":1,"email":"john@example.com","role":"user"}
 
 # Access without token
 curl http://localhost:3000/api/protected/me
-# {"error":"Missing or invalid Authorization header"}
 ```
+  </Tab>
+  <Tab value="Windows (PowerShell)">
+```powershell
+# Register
+curl -X POST http://localhost:3000/auth/register `
+  -H "Content-Type: application/json" `
+  -d '{"name":"John","email":"john@example.com","password":"secret123"}'
+
+# Login
+curl -X POST http://localhost:3000/auth/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"john@example.com","password":"secret123"}'
+
+# Access protected route
+curl http://localhost:3000/api/protected/me `
+  -H "Authorization: Bearer eyJhbG..."
+
+# Access without token
+curl http://localhost:3000/api/protected/me
+```
+  </Tab>
+  <Tab value="Windows (CMD)">
+```cmd
+REM Register
+curl -X POST http://localhost:3000/auth/register ^
+  -H "Content-Type: application/json" ^
+  -d "{\"name\":\"John\",\"email\":\"john@example.com\",\"password\":\"secret123\"}"
+
+REM Login
+curl -X POST http://localhost:3000/auth/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"john@example.com\",\"password\":\"secret123\"}"
+
+REM Access protected route
+curl http://localhost:3000/api/protected/me ^
+  -H "Authorization: Bearer eyJhbG..."
+
+REM Access without token
+curl http://localhost:3000/api/protected/me
+```
+  </Tab>
+</Tabs>
   </Accordion>
 </Accordions>
 
@@ -899,8 +1003,17 @@ java -jar target/crud-api.jar
 
 ### Test
 
+<Tabs items={['Linux/macOS', 'Windows']}>
+  <Tab value="Linux/macOS">
 ```bash
 curl http://localhost:3000/api/users
 ```
+  </Tab>
+  <Tab value="Windows">
+```powershell
+curl http://localhost:3000/api/users
+```
+  </Tab>
+</Tabs>
 
 </Steps>
