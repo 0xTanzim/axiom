@@ -242,13 +242,13 @@ public class DefaultApp implements App {
         }
 
         this.serverConfig = config;
-        DefaultApp.LOG.info("Starting Axiom application...");
+        DefaultApp.LOG.info("[Axiom] Starting application...");
 
         try {
             this.executeStartHooks();
             this.startServer(config);
             this.phase.set(LifecyclePhase.STARTED);
-            DefaultApp.LOG.info("Axiom application started on {}:{}", config.host(), this.activeServer.port());
+            DefaultApp.LOG.info("[Axiom] Application started on {}:{}", config.host(), this.activeServer.port());
             this.executeReadyHooks();
         } catch (final Exception e) {
             DefaultApp.LOG.error("Failed to start application: {}", e.getMessage(), e);
@@ -274,7 +274,7 @@ public class DefaultApp implements App {
             return;
         }
 
-        DefaultApp.LOG.info("Stopping Axiom application...");
+        DefaultApp.LOG.info("[Axiom] Stopping application...");
         final List<Throwable> failures = new ArrayList<>();
 
         try {
@@ -291,7 +291,7 @@ public class DefaultApp implements App {
         this.phase.set(LifecyclePhase.STOPPED);
 
         if (failures.isEmpty()) {
-            DefaultApp.LOG.info("Axiom application stopped");
+            DefaultApp.LOG.info("[Axiom] Application stopped");
         } else {
             DefaultApp.LOG.warn("Shutdown completed with {} error(s)", failures.size());
             failures.forEach(f -> DefaultApp.LOG.warn("Shutdown hook failed", f));

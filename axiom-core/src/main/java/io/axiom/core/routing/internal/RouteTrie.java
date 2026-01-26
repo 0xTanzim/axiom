@@ -128,7 +128,7 @@ public final class RouteTrie {
         }
 
         String[] segments = splitPath(path);
-        Map<String, String> params = new LinkedHashMap<>();
+        Map<String, String> params = new HashMap<>(4);
 
         TrieNode matched = matchSegments(root, segments, 0, params);
         if (matched == null || matched.handler == null) {
@@ -252,16 +252,37 @@ public final class RouteTrie {
             return new String[0];
         }
 
-        String normalized = path.startsWith("/") ? path.substring(1) : path;
-        if (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
+        int start = path.charAt(0) == '/' ? 1 : 0;
+        int end = path.length();
+        if (end > 1 && path.charAt(end - 1) == '/') {
+            end--;
         }
 
-        if (normalized.isEmpty()) {
+        if (start >= end) {
             return new String[0];
         }
 
-        return normalized.split("/");
+        int segmentCount = 1;
+        for (int i = start; i < end; i++) {
+            if (path.charAt(i) == '/') {
+                segmentCount++;
+            }
+        }
+
+        String[] segments = new String[segmentCount];
+        int segmentIndex = 0;
+        int segmentStart = start;
+
+        for (int i = start; i <= end; i++) {
+            if (i == end || path.charAt(i) == '/') {
+                if (i > segmentStart) {
+                    segments[segmentIndex++] = path.substring(segmentStart, i);
+                }
+                segmentStart = i + 1;
+            }
+        }
+
+        return segments;
     }
 
     private static String joinRemaining(String[] segments, int fromIndex) {

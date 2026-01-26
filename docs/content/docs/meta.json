@@ -6,6 +6,7 @@
     "getting-started",
     "installation",
     "server",
+    "benchmarks",
     "---Core Concepts---",
     "routing",
     "context",

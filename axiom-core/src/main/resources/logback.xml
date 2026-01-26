@@ -1,0 +1,21 @@
+d<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender with clean, IDE-friendly formatting -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- Simple, professional pattern without ANSI colors -->
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger configuration -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Axiom framework loggers -->
+    <logger name="io.axiom" level="INFO" />
+
+    <!-- Suppress noisy third-party loggers -->
+    <logger name="com.sun.net.httpserver" level="WARN" />
+</configuration>

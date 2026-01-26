@@ -43,6 +43,8 @@ final class JdkServer implements Server {
 
     private static final Logger LOG = LoggerFactory.getLogger(JdkServer.class);
     private static final int DEFAULT_BACKLOG = 0;
+    private static final AtomicLong REQUEST_COUNTER = new AtomicLong(0);
+    private static final JsonCodec SHARED_JSON_CODEC = new JacksonCodec();
 
     private final AtomicBoolean started = new AtomicBoolean(false);
     private final AtomicBoolean stopped = new AtomicBoolean(false);
@@ -87,7 +89,7 @@ final class JdkServer implements Server {
             this.httpServer.createContext("/", this::handleExchange);
             this.httpServer.start();
 
-            JdkServer.LOG.info("JdkServer listening on {}:{} (virtual threads: {})",
+            JdkServer.LOG.info("[Axiom] JdkServer listening on {}:{} (virtual threads: {})",
                     config.host(), this.httpServer.getAddress().getPort(), config.virtualThreads());
 
         } catch (final IOException e) {
@@ -139,14 +141,10 @@ final class JdkServer implements Server {
     }
 
     private void handleExchange(final HttpExchange exchange) {
-        final String requestId = UUID.randomUUID().toString().substring(0, 8);
-        MDC.put("requestId", requestId);
-
         try {
             final var request = new JdkRequest(exchange, this.config.maxRequestSize());
             final var response = new JdkResponse(exchange);
-            final var jsonCodec = new JacksonCodec();
-            final var context = new DefaultContext(request, response, jsonCodec);
+            final var context = new DefaultContext(request, response, JdkServer.SHARED_JSON_CODEC);
 
             if (JdkServer.LOG.isDebugEnabled()) {
                 JdkServer.LOG.debug("{} {}", request.method(), request.path());
@@ -162,7 +160,6 @@ final class JdkServer implements Server {
             JdkServer.LOG.error("Unhandled exception processing request: {}", e.getMessage(), e);
             this.sendErrorResponse(exchange, e);
         } finally {
-            MDC.clear();
             exchange.close();
         }
     }
@@ -314,7 +311,7 @@ final class JdkServer implements Server {
      */
     private static final class JdkResponse implements DefaultContext.Response {
         private final HttpExchange exchange;
-        private final AtomicBoolean committed = new AtomicBoolean(false);
+        private volatile boolean committed;
         private int statusCode = 200;
 
         JdkResponse(final HttpExchange exchange) {
@@ -333,9 +330,10 @@ final class JdkServer implements Server {
 
         @Override
         public void send(final byte[] data) {
-            if (!this.committed.compareAndSet(false, true)) {
+            if (this.committed) {
                 return;
             }
+            this.committed = true;
 
             try {
                 final long length = data != null && data.length > 0 ? data.length : -1;
@@ -352,7 +350,7 @@ final class JdkServer implements Server {
         }
 
         boolean isCommitted() {
-            return this.committed.get();
+            return this.committed;
         }
     }
 }

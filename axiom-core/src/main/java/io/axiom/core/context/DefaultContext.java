@@ -2,7 +2,6 @@ package io.axiom.core.context;
 
 import java.nio.charset.*;
 import java.util.*;
-import java.util.concurrent.atomic.*;
 
 import io.axiom.core.error.*;
 import io.axiom.core.json.*;
@@ -29,8 +28,8 @@ public final class DefaultContext implements Context {
     private final Request request;
     private final Response response;
     private final JsonCodec jsonCodec;
-    private final Map<String, Object> state;
-    private final AtomicBoolean committed;
+    private Map<String, Object> state;
+    private volatile boolean committed;
 
     private Object cachedBody;
     private boolean bodyParsed;
@@ -46,8 +45,6 @@ public final class DefaultContext implements Context {
         this.request = Objects.requireNonNull(request, "Request cannot be null");
         this.response = Objects.requireNonNull(response, "Response cannot be null");
         this.jsonCodec = Objects.requireNonNull(jsonCodec, "JsonCodec cannot be null");
-        this.state = new HashMap<>();
-        this.committed = new AtomicBoolean(false);
     }
 
     // ========== Request Methods ==========
@@ -70,7 +67,7 @@ public final class DefaultContext implements Context {
 
     @Override
     public Map<String, String> params() {
-        return Collections.unmodifiableMap(this.request.params());
+        return this.request.params();
     }
 
     @Override
@@ -81,7 +78,7 @@ public final class DefaultContext implements Context {
 
     @Override
     public Map<String, String> queries() {
-        return Collections.unmodifiableMap(this.request.queryParams());
+        return this.request.queryParams();
     }
 
     @Override
@@ -173,6 +170,10 @@ public final class DefaultContext implements Context {
         Objects.requireNonNull(key, "State key cannot be null");
         Objects.requireNonNull(type, "Type cannot be null");
 
+        if (this.state == null) {
+            return Optional.empty();
+        }
+
         final Object value = this.state.get(key);
         if (value == null) {
             return Optional.empty();
@@ -186,6 +187,9 @@ public final class DefaultContext implements Context {
     @Override
     public void set(final String key, final Object value) {
         Objects.requireNonNull(key, "State key cannot be null");
+        if (this.state == null) {
+            this.state = new HashMap<>();
+        }
         this.state.put(key, value);
     }
 
@@ -229,13 +233,14 @@ public final class DefaultContext implements Context {
     }
 
     private void ensureNotCommitted() {
-        if (this.committed.get()) {
+        if (this.committed) {
             throw new ResponseCommittedException();
         }
     }
 
     private void commit(final byte[] data) {
-        if (this.committed.compareAndSet(false, true)) {
+        if (!this.committed) {
+            this.committed = true;
             this.response.send(data);
         }
     }
