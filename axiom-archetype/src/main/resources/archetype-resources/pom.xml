@@ -16,7 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <axiom.version>0.1.3</axiom.version>
+        <axiom.version>0.1.4</axiom.version>
     </properties>
 
     <dependencies>

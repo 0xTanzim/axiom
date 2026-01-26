@@ -35,7 +35,7 @@ The fastest way to create a new Axiom project (works on all platforms):
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.0xtanzim \
   -DarchetypeArtifactId=axiom-quickstart \
-  -DarchetypeVersion=0.1.3 \
+  -DarchetypeVersion=0.1.4 \
   -DgroupId=com.example \
   -DartifactId=my-app \
   -Dversion=1.0.0 \
@@ -47,7 +47,7 @@ mvn archetype:generate \
 mvn archetype:generate ^
   -DarchetypeGroupId=io.github.0xtanzim ^
   -DarchetypeArtifactId=axiom-quickstart ^
-  -DarchetypeVersion=0.1.3 ^
+  -DarchetypeVersion=0.1.4 ^
   -DgroupId=com.example ^
   -DartifactId=my-app ^
   -Dversion=1.0.0 ^
@@ -60,7 +60,7 @@ mvn archetype:generate ^
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.0xtanzim \
   -DarchetypeArtifactId=axiom-quickstart \
-  -DarchetypeVersion=0.1.3
+  -DarchetypeVersion=0.1.4
 ```
   </Tab>
 </Tabs>
@@ -105,7 +105,7 @@ Quick setup for existing projects:
     <dependency>
         <groupId>io.github.0xtanzim</groupId>
         <artifactId>axiom</artifactId>
-        <version>0.1.3</version>
+        <version>0.1.4</version>
     </dependency>
 
     <!-- SLF4J Logging Implementation (recommended) -->
@@ -136,7 +136,7 @@ java {
 }
 
 dependencies {
-    implementation 'io.github.0xtanzim:axiom:0.1.3'
+    implementation 'io.github.0xtanzim:axiom:0.1.4'
 }
 
 application {
@@ -158,7 +158,7 @@ java {
 }
 
 dependencies {
-    implementation("io.github.0xtanzim:axiom:0.1.3")
+    implementation("io.github.0xtanzim:axiom:0.1.4")
 }
 
 application {
@@ -337,7 +337,7 @@ public class App {
 
         // JSON response
         router.get("/api/status", c ->
-            c.json(Map.of("status", "ok", "version", "0.1.3"))
+            c.json(Map.of("status", "ok", "version", "0.1.4"))
         );
 
         // Path parameters

@@ -41,10 +41,10 @@ public class App {
 Axiom.start(router, 8080);
 
 // Host and port
-Axiom.start(router, "0.1.3.0", 8080);
+Axiom.start(router, "0.1.4.0", 8080);
 
 // Localhost only
-Axiom.start(router, "127.0.1.3", 8080);
+Axiom.start(router, "127.0.1.4", 8080);
 ```
 
 ### Full Control with App
@@ -85,7 +85,7 @@ App app = Axiom.create();
 app.route(router);
 
 app.listen(ServerConfig.builder()
-    .host("0.1.3.0")           // Bind to all interfaces
+    .host("0.1.4.0")           // Bind to all interfaces
     .port(8080)                 // Port number
     .readTimeout(Duration.ofSeconds(30))
     .writeTimeout(Duration.ofSeconds(30))
@@ -98,7 +98,7 @@ app.listen(ServerConfig.builder()
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `host` | `0.1.3.0` | Network interface to bind to |
+| `host` | `0.1.4.0` | Network interface to bind to |
 | `port` | `8080` | Port number (0 for random) |
 | `readTimeout` | `30s` | Max time to read request |
 | `writeTimeout` | `30s` | Max time to write response |
@@ -112,7 +112,7 @@ app.listen(ServerConfig.builder()
 Create `application.properties`:
 
 ```properties
-server.host=0.1.3.0
+server.host=0.1.4.0
 server.port=8080
 ```
 
@@ -158,7 +158,7 @@ public class App {
 
         app.route(router);
         app.listen(ServerConfig.builder()
-            .host("0.1.3.0")
+            .host("0.1.4.0")
             .port(80)
             .build());
     }
@@ -385,7 +385,7 @@ java -cp out:axiom.jar App
 ```bash
 java -cp out:axiom.jar \
   -Dserver.port=9090 \
-  -Dserver.host=127.0.1.3 \
+  -Dserver.host=127.0.1.4 \
   App
 ```
   </Tab>

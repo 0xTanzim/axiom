@@ -57,7 +57,7 @@ record User(String name, String email) {}
 mvn archetype:generate \
   -DarchetypeGroupId=io.github.0xtanzim \
   -DarchetypeArtifactId=axiom-quickstart \
-  -DarchetypeVersion=0.1.3 \
+  -DarchetypeVersion=0.1.4 \
   -DgroupId=com.example \
   -DartifactId=my-app \
   -Dversion=1.0.0 \
@@ -69,7 +69,7 @@ mvn archetype:generate \
 mvn archetype:generate ^
   -DarchetypeGroupId=io.github.0xtanzim ^
   -DarchetypeArtifactId=axiom-quickstart ^
-  -DarchetypeVersion=0.1.3 ^
+  -DarchetypeVersion=0.1.4 ^
   -DgroupId=com.example ^
   -DartifactId=my-app ^
   -Dversion=1.0.0 ^
@@ -81,7 +81,7 @@ mvn archetype:generate ^
 mvn archetype:generate `
   -DarchetypeGroupId=io.github.0xtanzim `
   -DarchetypeArtifactId=axiom-quickstart `
-  -DarchetypeVersion=0.1.3 `
+  -DarchetypeVersion=0.1.4 `
   -DgroupId=com.example `
   -DartifactId=my-app `
   -Dversion=1.0.0 `
@@ -109,7 +109,7 @@ mvn compile exec:java
 <dependency>
     <groupId>io.github.0xtanzim</groupId>
     <artifactId>axiom</artifactId>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
     <type>pom</type>
 </dependency>
 
@@ -121,7 +121,7 @@ mvn compile exec:java
 
 **Gradle:**
 ```kotlin
-implementation("io.github.0xtanzim:axiom:0.1.3")
+implementation("io.github.0xtanzim:axiom:0.1.4")
 
 java {
     toolchain {
@@ -199,8 +199,8 @@ Axiom.start(router, 8080);
 
 ```java
 // Bind to specific host
-Axiom.start(router, "127.0.1.3", 8080);  // localhost only
-Axiom.start(router, "0.1.3.0", 8080);    // all interfaces
+Axiom.start(router, "127.0.1.4", 8080);  // localhost only
+Axiom.start(router, "0.1.4.0", 8080);    // all interfaces
 ```
 
 ### Full Control
@@ -247,7 +247,7 @@ app.route(router);
 
 // Custom configuration
 app.listen(ServerConfig.builder()
-    .host("0.1.3.0")
+    .host("0.1.4.0")
     .port(8080)
     .readTimeout(Duration.ofSeconds(30))
     .writeTimeout(Duration.ofSeconds(30))
@@ -260,7 +260,7 @@ app.listen(ServerConfig.builder()
 
 ```properties
 # application.properties
-server.host=0.1.3.0
+server.host=0.1.4.0
 server.port=8080
 ```
 

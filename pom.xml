@@ -6,7 +6,7 @@
 
     <groupId>io.github.0xtanzim</groupId>
     <artifactId>axiom-parent</artifactId>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
     <packaging>pom</packaging>
 
     <name>Axiom Framework</name>
